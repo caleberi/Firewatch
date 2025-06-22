@@ -1,0 +1,42 @@
+global:
+  scrape_interval: 1m
+  scrape_timeout: 30s
+  evaluation_interval: 1m
+  scrape_protocols:
+    - "PrometheusProto"
+    - "OpenMetricsText1.0.0"
+    - "OpenMetricsText0.0.1"
+    - "PrometheusText0.0.4"
+  external_labels:
+    environment: "production"
+    monitor: prometheus-${HOSTNAME}
+  query_log_file: "query.log"
+  scrape_failure_log_file: "scrape.fail.log"
+  body_size_limit: 50MB
+
+runtime:
+  gogc: 80
+
+rule_files:
+  - rules/*.yml
+
+scrape_config_files:
+  - scrapes/*.yml
+
+alerting:
+  alert_relabel_configs:
+  alertmanagers:
+scrape_configs:
+  - job_name: "prometheus"
+    scrape_interval: 5s
+    static_configs:
+      - targets: ["host.docker.internal:8080", "host.docker.internal:8081"]
+        labels:
+          group: "production"
+
+      - targets: ["host.docker.internal:8082"]
+        labels:
+          group: "canary"
+storage:
+  tsdb:
+    out_of_order_time_window: "5m"
