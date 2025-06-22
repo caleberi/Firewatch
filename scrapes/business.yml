@@ -1,0 +1,4 @@
+scrape_configs:
+  - job_name: business_app_monitoring
+    static_configs:
+      - targets: ["host.docker.internal:1338"]

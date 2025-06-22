@@ -1,0 +1,4 @@
+scrape_configs:
+  - job_name: "backend_app_monitoring"
+    static_configs:
+      - targets: ["host.docker.internal:9093"]
