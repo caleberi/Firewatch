@@ -1,0 +1,20 @@
+[
+    {
+        "name":"alertmanager_config",
+        "description": "An alertmanager_config section specifies Alertmanager instances the Prometheus server sends alerts to. It also provides parameters to configure how to communicate with these Alertmanagers",
+        "skip_merge": false,
+        "path":"/etc/prometheus/alerts/**.yml"
+    },
+    {
+        "name":"rules_config",
+        "description": "rules configuration for alerts",
+        "skip_merge": true,
+        "path":"/etc/prometheus/rules/**.yml"
+    },
+    {
+        "name":"scrapes_config",
+        "description": "scraping target configuration",
+        "skip_merge": true,
+        "path":"/etc/prometheus/scrapes/**.yml"
+    }
+]
