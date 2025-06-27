@@ -1,9 +1,10 @@
-import os
-import yaml
+from os import path,getcwd,environ
+from yaml import safe_dump,safe_load,YAMLError
 import sys
 import re
 import json
 from typing import Any, List, Union
+from dotenv import load_dotenv
 import glob
 
 def load_population_file(file_path: str) -> Any:
@@ -22,11 +23,11 @@ def load_yaml_file(file_path: str) -> Any:
     """Load and parse a YAML file (e.g., prometheus.yml)."""
     try:
         with open(file_path, 'r') as file:
-            return yaml.safe_load(file) or {} 
+            return safe_load(file) or {} 
     except FileNotFoundError:
         print(f"Error: File {file_path} not found.")
         raise
-    except yaml.YAMLError as e:
+    except YAMLError as e:
         print(f"Error parsing YAML file: {e}")
         raise
 
@@ -83,6 +84,7 @@ def resolve_env_vars(data: Any, env_vars: dict) -> Any:
     elif isinstance(data, list):
         return [resolve_env_vars(item, env_vars) for item in data]
     elif isinstance(data, str):
+        data = data.strip()
         def replace_match(match):
             var_name = match.group(1)
             default_value = match.group(2)[1:] if match.group(2) else None
@@ -94,7 +96,7 @@ def save_yaml_file(file_path: str, data: Any) -> None:
     """Save the processed YAML data back to the specified file."""
     try:
         with open(file_path, 'w') as file:
-            yaml.safe_dump(data, file, default_flow_style=False, allow_unicode=True)
+            safe_dump(data, file, default_flow_style=False, allow_unicode=True)
     except IOError as e:
         print(f"Error writing to file {file_path}: {e}")
         raise
@@ -106,9 +108,12 @@ def main() -> None:
         " Usage: python resolve_env_vars.py <output_yaml_file> <population_json_file>")
         sys.exit(1)
 
+    if path.exists(getcwd().join(".env")):
+        load_dotenv(getcwd().join(".env"))
+        
     yaml_file = sys.argv[1] 
     population_path = sys.argv[2]
-    env_vars = dict(os.environ)
+    env_vars = dict(environ)
     full_config = {}
     if population_path == "-" :
         try:
