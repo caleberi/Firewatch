@@ -1,0 +1,11 @@
+groups:
+  - name: dashboard_rules # Name of the rule group, used to organize rules
+    interval: 5m # Evaluation interval for this rule group (rules are evaluated every 5 minutes)
+    limit: 10 # Limits the number of time series returned by the rule evaluation (max 10 series)
+    query_offset: 1m # Applies a 1-minute offset to the query evaluation time (useful for aligning with data availability)
+    labels: # Labels to attach to the metrics produced by these rules
+      application: "dashboard" # Static label identifying the application
+      environment: ${ENVIRONMENT} # Dynamic label using an environment variable for the environment name
+    rules:
+      - record: path:_admin_dashboard_http_requests_total:sum # Name of the recorded metric (output time series name)
+        expr: sum by (path) (_admin_dashboard_http_requests_total) # PromQL expression to compute the sum of _admin_dashboard_http_requests_total by path
