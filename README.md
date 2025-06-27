@@ -103,7 +103,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 - [Prometheus](https://prometheus.io/)
 - [Grafana](https://grafana.com/) (for dashboard inspiration)
-- Community contributors
+- PromQL-Anomaly-Dectection[PAD](https://github.com/grafana/promql-anomaly-detection)
 
 ---
 
