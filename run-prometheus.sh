@@ -12,6 +12,8 @@ SCRAPE_DIR=/etc/prometheus/scrapes
 PROM_PORT=${PROM_PORT:-9090} 
 PROM_LOGLEVEL=${PROM_LOGLEVEL:-info} 
 PROM_RETENTION_TIME=${PROM_RETENTION_TIME:-"30s"}
+PROM_RETENTION_SIZE=${PROM_RETENTION_SIZE:-"512MB"}
+
 
 if [ ! -x "$PROMETHEUS_EXECUTABLE_PROGRAM" ]; then
     echo "Error: Prometheus executable not found or not executable at $PROMETHEUS_EXECUTABLE_PROGRAM"
@@ -115,6 +117,8 @@ exec $PROMETHEUS_EXECUTABLE_PROGRAM \
     --enable-feature=exemplar-storage \
     --config.file=$PROMETHEUS_CONFIG_FILE \
     --storage.tsdb.retention.time="$PROM_RETENTION_TIME"\
+    --storage.tsdb.retention.size="$PROM_RETENTION_SIZE"\
+    --storage.tsdb.wal-compression \
     --storage.tsdb.path=/prometheus \
     --web.listen-address=0.0.0.0:$PROM_PORT \
     --web.enable-lifecycle \
@@ -123,4 +127,4 @@ exec $PROMETHEUS_EXECUTABLE_PROGRAM \
     --auto-gomemlimit.ratio=0.85 \
     --log.level=$PROM_LOGLEVEL \
     --log.format=json \
-    --enable-feature=memory-snapshot-on-shutdown,extra-scrape-metrics,promql-per-step-stats,promql-experimental-functions,concurrent-rule-eval,auto-reload-config,promql-duration-expr
+    --enable-feature=memory-snapshot-on-shutdown,extra-scrape-metrics,promql-per-step-stats,promql-experimental-functions,concurrent-rule-eval,auto-reload-config,native-histograms,promql-duration-expr
