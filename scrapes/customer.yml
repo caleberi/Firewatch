@@ -1,4 +1,35 @@
 scrape_configs:
+  # Scrape configuration for the business application monitoring job
   - job_name: "backend_app_monitoring"
+    # Interval between scrapes (default: global scrape_interval, e.g., 15s)
+    scrape_interval: 3m # e.g., 15s, 30s, 1m
+    # Timeout for each scrape (should be less than scrape_interval)
+    scrape_timeout: 10s # e.g., 10s
+    # Path to the metrics endpoint on the target
+    metrics_path: /api/v1/metrics # Default is /metrics; adjust if different (e.g., /actuator/prometheus)
+    # Scheme for the target (http or https)
+    scheme: http # Change to https if the target uses TLS
+    # Optional: Authentication settings (uncomment and configure if needed)
+    # basic_auth:
+    #   username: <FILL>    # Username for basic authentication
+    #   password: <FILL>    # Password for basic authentication
+    # Optional: TLS configuration (uncomment and configure for HTTPS)
+    # tls_config:
+    #   ca_file: <FILL>     # Path to CA certificate file
+    #   cert_file: <FILL>   # Path to client certificate file
+    #   key_file: <FILL>    # Path to client key file
+    #   insecure_skip_verify: false  # Set to true to skip TLS verification (not recommended for production)
+    # Optional: HTTP headers for the scrape request
+    # headers:
+    #   Authorization: Bearer <FILL>  # e.g., for token-based auth
+    # Optional: Relabeling rules to modify or filter labels before scraping
+    # relabel_configs:
+    #   - source_labels: [<FILL>]  # e.g., __address__
+    #     target_label: <FILL>     # e.g., instance
+    #     replacement: <FILL>      # e.g., custom-label-value
     static_configs:
-      - targets: ["host.docker.internal:9093"]
+      - targets: ["host.docker.internal:1337"] # Target host and port for the business app
+        # Optional: Labels to attach to all metrics from this target
+        labels:
+          application: backend_app # e.g., to identify the app
+          environment: ${ENVIRONMENT} # e.g., prod, dev, staging
