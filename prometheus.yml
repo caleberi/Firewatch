@@ -1,42 +1,46 @@
 global:
-  scrape_interval: 1m
-  scrape_timeout: 30s
-  evaluation_interval: 1m
-  scrape_protocols:
-    - "PrometheusProto"
-    - "OpenMetricsText1.0.0"
-    - "OpenMetricsText0.0.1"
-    - "PrometheusText0.0.4"
-  external_labels:
-    environment: "production"
-    monitor: prometheus-${HOSTNAME}
-  query_log_file: "query.log"
-  scrape_failure_log_file: "scrape.fail.log"
-  body_size_limit: 50MB
+  scrape_interval: 5m # Default interval for scraping metrics from all targets (5 minutes)
+  scrape_timeout: 30s # Default timeout for each scrape request (30 seconds)
+  evaluation_interval: 2m # Interval for evaluating rules, such as recording and alerting rules (2 minutes)
+  scrape_protocols: # List of supported protocols for scraping metrics, in order of preference
+    - "PrometheusProto" # Prometheus protocol (binary format, efficient for internal use)
+    - "OpenMetricsText1.0.0" # OpenMetrics text format, version 1.0.0
+    - "OpenMetricsText0.0.1" # OpenMetrics text format, version 0.0.1
+    - "PrometheusText0.0.4" # Legacy Prometheus text format, version 0.0.4
+  external_labels: # Labels attached to all metrics stored in Prometheus for external systems
+    environment: "production" # Static label indicating the environment
+    monitor: prometheus-${HOSTNAME} # Dynamic label using the hostname of the Prometheus instance
+  query_log_file: ${QUERY_LOG_FILE} # File to log all PromQL queries executed by Prometheus
+  scrape_failure_log_file: ${SCRAPE_FAILURE_LOG_FILE} # File to log scrape failures for debugging
+  body_size_limit: 50MB # Maximum size of the HTTP response body for scrapes (50 MB)
 
 runtime:
-  gogc: 80
+  gogc: 80 # Go garbage collection target percentage (80% of heap growth)
 
 rule_files:
-  - rules/*.yml
+  - rules/*.yml # Path to files containing recording and alerting rules (e.g., dashboard_rules from earlier)
 
 scrape_config_files:
-  - scrapes/*.yml
+  - scrapes/*.yml # Path to files containing scrape configurations (e.g., business_app_monitoring, admin_dashboard_monitoring)
 
 alerting:
-  alert_relabel_configs:
-  alertmanagers:
-scrape_configs:
-  - job_name: "prometheus"
-    scrape_interval: 5s
-    static_configs:
-      - targets: ["host.docker.internal:8080", "host.docker.internal:8081"]
-        labels:
-          group: "production"
+  alert_relabel_configs: # Configuration for relabeling alerts before sending to Alertmanager (empty here)
+  alertmanagers: # List of Alertmanager instances for sending alerts (empty here)
 
-      - targets: ["host.docker.internal:8082"]
-        labels:
-          group: "canary"
+scrape_configs:
+  - job_name: "prometheus" # Scrape job for Prometheus itself (self-monitoring)
+    scrape_interval: 10m # Override global scrape_interval for this job (10 minutes)
+    scrape_timeout: 30s # Timeout for scraping Prometheus metrics (30 seconds)
+    always_scrape_classic_histograms: false # Disable scraping of classic histograms (use native histograms instead)
+    params: # Additional query parameters to include in scrape requests
+      x-service-id: ["prometheus"] # Custom parameter to identify the service
+    enable_compression: false # Disable HTTP compression for scrape requests
+    scrape_failure_log_file: ${SCRAPE_FAILURE_LOG_FILE} # Job-specific file for logging scrape failures
+    # Note: No targets specified; typically, Prometheus scrapes itself via localhost:9090
+    # Consider adding:
+    static_configs:
+      - targets: ["localhost:${PROM_PORT}"]
+
 storage:
-  tsdb:
-    out_of_order_time_window: "5m"
+  tsdb: # Configuration for the time-series database (TSDB)
+    out_of_order_time_window: "5m" # Allow metrics to be written up to 5 minutes out of order
