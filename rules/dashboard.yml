@@ -1,11 +1,65 @@
 groups:
-  - name: dashboard_rules # Name of the rule group, used to organize rules
-    interval: 5m # Evaluation interval for this rule group (rules are evaluated every 5 minutes)
-    limit: 10 # Limits the number of time series returned by the rule evaluation (max 10 series)
-    query_offset: 1m # Applies a 1-minute offset to the query evaluation time (useful for aligning with data availability)
-    labels: # Labels to attach to the metrics produced by these rules
-      application: "dashboard" # Static label identifying the application
-      environment: ${ENVIRONMENT} # Dynamic label using an environment variable for the environment name
+  - name: Administrative Dashboard Rule
+    interval: 5m
+    limit: 1000
+    query_offset: 30s
+    labels:
+      application: "dashboard"
+      environment: ${ENVIRONMENT}
     rules:
-      - record: path:_admin_dashboard_http_requests_total:sum # Name of the recorded metric (output time series name)
-        expr: sum by (path) (_admin_dashboard_http_requests_total) # PromQL expression to compute the sum of _admin_dashboard_http_requests_total by path
+      - record: _admin_dashboard:request:30min
+        expr: |-
+          group by (path, query, environment) (
+            rate(_admin_dashboard_metric_request_detail[30m])
+          )
+        labels:
+          unit: "requests_per_second"
+          description: |-
+            Per-second rate of requests to the admin dashboard over the past 30 minutes, 
+            calculated from the `_admin_dashboard_metric_request_detail` counter metric. 
+            Results are grouped by `path`, `query`, and `environment` labels, preserving these 
+            labels in the output metric. Updated at each Prometheus evaluation interval. 
+            Useful for monitoring request rates per endpoint, query type, or environment to 
+            identify usage patterns, performance bottlenecks, or anomalies in dashboard activity.
+
+      - record: _admin_dashboard:estimated_percentage_request:30min
+        expr: |-
+          (
+            (increase(_admin_dashboard_metric_requests_total[30m]) 
+            / increase(_admin_dashboard_metric_requests_total[1h]))
+          ) * 100
+        labels:
+          unit: "percentage"
+          description: |-
+            Percentage of new requests to the admin dashboard in the last 30 minutes relative to 
+            the total new requests in the past 1-hour period. Calculated as the ratio of the 
+            increase in `_admin_dashboard_metric_requests_total` over 30 minutes to the increase 
+            over 1 hour, multiplied by 100. Preserves labels from the source metric (e.g., instance, job) 
+            and is updated at each Prometheus evaluation interval. Useful for monitoring short-term 
+            request spikes or shifts in dashboard usage patterns.
+
+      - record: _admin_dashboard:total_request_per_hour
+        expr: increase(_admin_dashboard_metric_requests_total[1h])
+        labels:
+          unit: "requests_per_hour"
+          description: |-
+            Total number of new requests to the admin dashboard over the past 1-hour period, 
+            calculated as the increase in the `_admin_dashboard_metric_requests_total` counter metric. 
+            Preserves labels from the source metric (e.g., instance, job) and is updated at each 
+            Prometheus evaluation interval. Useful for monitoring hourly request volume and 
+            detecting trends or anomalies in dashboard usage.
+
+      - record: _admin_dashboard:average_request_per_hour
+        expr: |-
+          sum_over_time(
+            _admin_dashboard_metric_requests_total[1h]
+          ) / count_over_time(_admin_dashboard_metric_requests_total[1h])
+        labels:
+          unit: "requests_per_sample"
+          description: |-
+            Average value of the `_admin_dashboard_metric_requests_total` counter metric per sample 
+            over the past 1-hour period. Calculated as the sum of raw sample values divided by the 
+            number of samples in the 1-hour window. Preserves labels from the source metric (e.g., instance, job) 
+            and is updated at each Prometheus evaluation interval. Useful for analyzing the average 
+            cumulative request count per sample, though typically less relevant for counters compared 
+            to rate or increase metrics.
