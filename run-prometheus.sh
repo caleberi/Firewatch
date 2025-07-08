@@ -127,4 +127,6 @@ exec $PROMETHEUS_EXECUTABLE_PROGRAM \
     --auto-gomemlimit.ratio=0.85 \
     --log.level=$PROM_LOGLEVEL \
     --log.format=json \
+    --query.lookback-delta=5m \
+    --query.timeout=2m \
     --enable-feature=memory-snapshot-on-shutdown,extra-scrape-metrics,promql-per-step-stats,promql-experimental-functions,concurrent-rule-eval,auto-reload-config,native-histograms,promql-duration-expr
