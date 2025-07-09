@@ -1,5 +1,5 @@
 groups:
-  - name: Administrative Dashboard Rule
+  - name: Administrative Dashboard Request Rules
     interval: 5m
     limit: 1000
     query_offset: 30s
@@ -7,7 +7,7 @@ groups:
       application: "dashboard"
       environment: ${ENVIRONMENT}
     rules:
-      - record: _admin_dashboard:request:30min
+      - record: admin_dashboard:request_rate:30m
         expr: |-
           group by (path, query, environment) (
             rate(_admin_dashboard_metric_request_detail[30m])
@@ -15,14 +15,12 @@ groups:
         labels:
           unit: "requests_per_second"
           description: |-
-            Per-second rate of requests to the admin dashboard over the past 30 minutes, 
-            calculated from the `_admin_dashboard_metric_request_detail` counter metric. 
-            Results are grouped by `path`, `query`, and `environment` labels, preserving these 
-            labels in the output metric. Updated at each Prometheus evaluation interval. 
-            Useful for monitoring request rates per endpoint, query type, or environment to 
-            identify usage patterns, performance bottlenecks, or anomalies in dashboard activity.
+            Per-second request rate to the admin dashboard over the last 30 minutes, derived from the 
+            `_admin_dashboard_metric_request_detail` counter metric. Grouped by `path`, `query`, and 
+            `environment` labels, which are preserved in the output. Updated per Prometheus evaluation 
+            cycle. Useful for tracking endpoint usage, query patterns, and environmental performance.
 
-      - record: _admin_dashboard:estimated_percentage_request:30min
+      - record: admin_dashboard:request_percentage:30m
         expr: |-
           (
             (increase(_admin_dashboard_metric_requests_total[30m]) 
@@ -31,25 +29,22 @@ groups:
         labels:
           unit: "percentage"
           description: |-
-            Percentage of new requests to the admin dashboard in the last 30 minutes relative to 
-            the total new requests in the past 1-hour period. Calculated as the ratio of the 
-            increase in `_admin_dashboard_metric_requests_total` over 30 minutes to the increase 
-            over 1 hour, multiplied by 100. Preserves labels from the source metric (e.g., instance, job) 
-            and is updated at each Prometheus evaluation interval. Useful for monitoring short-term 
-            request spikes or shifts in dashboard usage patterns.
+            Percentage of admin dashboard requests in the last 30 minutes relative to the total requests 
+            in the past hour, based on the `_admin_dashboard_metric_requests_total` counter metric. 
+            Preserves source metric labels (e.g., instance, job). Updated per Prometheus evaluation cycle. 
+            Useful for detecting short-term request spikes or usage shifts.
 
-      - record: _admin_dashboard:total_request_per_hour
+      - record: admin_dashboard:request_total:1h
         expr: increase(_admin_dashboard_metric_requests_total[1h])
         labels:
           unit: "requests_per_hour"
           description: |-
-            Total number of new requests to the admin dashboard over the past 1-hour period, 
-            calculated as the increase in the `_admin_dashboard_metric_requests_total` counter metric. 
-            Preserves labels from the source metric (e.g., instance, job) and is updated at each 
-            Prometheus evaluation interval. Useful for monitoring hourly request volume and 
-            detecting trends or anomalies in dashboard usage.
+            Total number of new admin dashboard requests over the past hour, calculated from the 
+            `_admin_dashboard_metric_requests_total` counter metric. Preserves source metric labels 
+            (e.g., instance, job). Updated per Prometheus evaluation cycle. Useful for monitoring hourly 
+            request volume and identifying usage trends or anomalies.
 
-      - record: _admin_dashboard:average_request_per_hour
+      - record: admin_dashboard:request_avg:1h
         expr: |-
           sum_over_time(
             _admin_dashboard_metric_requests_total[1h]
@@ -58,8 +53,28 @@ groups:
           unit: "requests_per_sample"
           description: |-
             Average value of the `_admin_dashboard_metric_requests_total` counter metric per sample 
-            over the past 1-hour period. Calculated as the sum of raw sample values divided by the 
-            number of samples in the 1-hour window. Preserves labels from the source metric (e.g., instance, job) 
-            and is updated at each Prometheus evaluation interval. Useful for analyzing the average 
-            cumulative request count per sample, though typically less relevant for counters compared 
-            to rate or increase metrics.
+            over the past hour, calculated as the sum of sample values divided by the number of samples. 
+            Preserves source metric labels (e.g., instance, job). Updated per Prometheus evaluation cycle. 
+            Useful for analyzing cumulative request patterns, though less common for counter metrics.
+
+  - name: Administrative Dashboard Error Rules
+    interval: 2m
+    limit: 1000
+    query_offset: 15s
+    labels:
+      application: "dashboard"
+      environment: ${ENVIRONMENT}
+      error-tracking: "true"
+    rules:
+      - record: admin_dashboard:error_ratio:1h
+        expr: |-
+          (sum(rate(_admin_dashboard_metric_errors_total[1h])) /
+          sum(rate(_admin_dashboard_metric_requests_total[1h]))) * 100
+        labels:
+          unit: "error_per_request"
+          description: |-
+            Percentage of errors relative to requests on the admin dashboard over the past hour, 
+            calculated as the ratio of the sum of error rates 
+            (`_admin_dashboard_metric_errors_total` to the sum of request rates 
+            (`_admin_dashboard_metric_requests_total`), multiplied by 100. Updated per Prometheus 
+            evaluation cycle. Useful for monitoring error frequency and identifying reliability issues.
