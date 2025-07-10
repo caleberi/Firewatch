@@ -28,7 +28,7 @@ scrape_configs:
     #     target_label: <FILL>     # e.g., instance
     #     replacement: <FILL>      # e.g., custom-label-value
     static_configs:
-      - targets: ["host.docker.internal:1337"] # Target host and port for the business app
+      - targets: ["${CUSTOMER_APPLICATION_URL}"] # Target host and port for the business app
         # Optional: Labels to attach to all metrics from this target
         labels:
           application: backend_app # e.g., to identify the app
