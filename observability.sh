@@ -1,4 +1,5 @@
 #!/bin/sh
+set -e
 
 PROMETHEUS_EXECUTABLE_PROGRAM=/usr/bin/prometheus
 PROMETHEUS_TOOL_EXECUTABLE_PROGRAM=/usr/bin/promtool
@@ -14,6 +15,11 @@ PROM_LOGLEVEL=${PROM_LOGLEVEL:-info}
 PROM_RETENTION_TIME=${PROM_RETENTION_TIME:-"30s"}
 PROM_RETENTION_SIZE=${PROM_RETENTION_SIZE:-"512MB"}
 
+GF_PATHS_PLUGINS=${GF_PATHS_PLUGINS:-"/var/lib/grafana/plugins"}
+GF_PATHS_DATA=${GF_PATHS_DATA:-"/var/lib/grafana"}
+GF_PATHS_LOGS=${GF_PATHS_LOGS:-"/var/log/grafana"}
+GF_PATHS_PROVISIONING=${GF_PATHS_PROVISIONING:-"/etc/grafana/provisioning"}
+GRAFANA_EXECUTABLE_PROGRAM=/usr/share/grafana/grafana-server
 
 if [ ! -x "$PROMETHEUS_EXECUTABLE_PROGRAM" ]; then
     echo "Error: Prometheus executable not found or not executable at $PROMETHEUS_EXECUTABLE_PROGRAM"
@@ -111,6 +117,26 @@ else
     echo "Error: Configuration file $PROMETHEUS_CONFIG_FILE not found"
     exit 1
 fi
+
+# Start Grafana as a daemon (in the background)
+if [ -x "$GRAFANA_EXECUTABLE_PROGRAM"]; then 
+    /usr/share/grafana/grafana-server \
+    --homepath=/usr/share/grafana \
+    --config=/etc/grafana/grafana.ini \
+    cfg:default.paths.plugins=$GF_PATHS_PLUGINS \
+    cfg:default.paths.data=$GF_PATHS_DATA \
+    cfg:default.paths.logs=$GF_PATHS_LOGS \
+    cfg:default.paths.provisioning=$GF_PATHS_PROVISIONING \
+    & echo "Waiting for Grafana to start..."
+    
+    until curl -s http://localhost:${GRAFANA_PORT}/api/health >/dev/null; do
+    sleep 1
+    done
+    echo "Grafana started"
+else
+    echo "Skipping grafana startup due to missing executable"
+fi
+
 
 echo "Starting Prometheus With $PROMETHEUS_CONFIG_FILE..."
 exec $PROMETHEUS_EXECUTABLE_PROGRAM \
