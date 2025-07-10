@@ -1,0 +1,90 @@
+http_request_total
+
+http_request_total{job="api-server", handler="/api/comments"}           
+   
+{__name__="http_request_total"}          
+{job="api-server"}  
+{handler="/api/comments"}
+
+http_request_total{job="api-server", handler="/api/comments"}[5m] 
+{__name__="http_request_total"}          
+{job="api-server"}  
+{handler="/api/comments"}
+{__window__=5m}
+
+http_request_total{job=~".*server"}
+{__name__="http_request_total"}   
+{job=".*server"} 
+{pattern = "<.*>server"}
+
+http_requests_total{status!~"4.."}
+{__name__="http_request_total"}   
+{status != "4XX"} 
+
+
+query=rate(http_requests_total[5m])[30m:1m]
+{
+    {
+        __q2= {
+            __fn__=rate
+            __q1={
+                __name__="http_requests_total"
+                __window__= [5m]
+            }
+        }
+        __window__=[
+            30m
+            1m
+        ]
+    }
+
+}
+
+
+query=sum by (job) (rate(http_requests_total[5m]))
+{
+    fn: sum 
+    by : {
+        __labels__=[
+            "job"
+        ]
+        __q2__={
+            fn: rate
+            __q1= {
+                __name__=http_request_total
+                __window__= 5m
+            }
+        }
+    }
+}
+
+
+query=(instance_memory_limit_bytes - instance_memory_usage_bytes) / 1024 / 1024
+{
+   binary = {
+    operator = "/"
+    left = binary= {
+        operator= "/"
+        right = "1024"
+        left = binary={
+            operator="-"
+            left= {__name__="instance_memory_limit_bytes"}
+            right= {__name__="instance_memory_usage_bytes"}
+        }
+    }
+    right= "1024"
+   }
+}
+
+query= count by (app) (instance_cpu_time_ns)
+{
+    fn: count
+    by: {
+       __labels__=[
+            "app"
+        ]
+        __q1= {
+            __name__="instance_cpu_time_ns"
+        }
+    }
+}
