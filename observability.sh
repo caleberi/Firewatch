@@ -211,7 +211,7 @@ if [ "$DEV_MODE" = "on" ] && [ -x "$GRAFANA_EXECUTABLE_PROGRAM" ]; then
         set -e                    # exit on error
         for plugin in $GF_INSTALL_PLUGINS; do
             IFS=$OLDIFS           # restore default word‑splitting for each body
-            if printf '%s\n' "$plugin" | gre p -q ';'; then
+            if printf '%s\n' "$plugin" | grep -q ';'; then
                 pluginUrl=${plugin%%;*}
                 pluginInstallFolder=${plugin#*;}
                 su -s /bin/sh grafana -c \
