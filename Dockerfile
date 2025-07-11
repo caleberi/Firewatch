@@ -13,6 +13,7 @@ ARG BUILD_PLATFORM
 ARG TARGET_OS
 ARG TARGET_PLATFORM
 ARG DEV_MODE
+ARG RM_TEMP
 
 ARG PROM_LOGLEVEL=info
 ARG PROM_PORT=9090
@@ -42,6 +43,7 @@ ENV GF_PLUGIN_RENDERING_CHROME_BIN="/usr/bin/chrome"
 ENV GF_PLUGIN_IMAGE_RENDER_URL="https://github.com/grafana/grafana-image-renderer/releases/latest/download/plugin-alpine-x64-no-chromium.zip"
 ENV GF_EXECUTABLE_VERSION_URL="https://dl.grafana.com/oss/release/grafana-12.0.2.linux-amd64.tar.gz"
 ENV PROM_EXECUTABLE_VERSION_URL="https://github.com/prometheus/prometheus/releases/download/v3.4.1/prometheus-3.4.1.linux-amd64.tar.gz"
+
 
 LABEL org.opencontainers.image.title="Observability Service"
 LABEL org.opencontainers.image.description="Observability service for Configured applications"
@@ -135,6 +137,10 @@ RUN python3 -m venv /venv \
 
 # # Make start script executable
 RUN chmod +x /observability.sh
+
+RUN if [ ! -z "${DEV_MODE}" ]; then \
+    rm -rf /tmp; \
+    fi
 
 # # Expose Prometheus port (default 9090)
 EXPOSE ${PROM_PORT}
