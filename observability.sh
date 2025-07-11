@@ -10,16 +10,76 @@ POPULATION_FILE=/etc/prometheus/populate.json
 RULES_DIR=/etc/prometheus/rules
 SCRAPE_DIR=/etc/prometheus/scrapes
 
+
+GRAFANA_PORT=${GRAFANA_PORT:-3000}
+GRAFANA_EXECUTABLE_PROGRAM=/usr/share/grafana/grafana-server
+
 PROM_PORT=${PROM_PORT:-9090} 
 PROM_LOGLEVEL=${PROM_LOGLEVEL:-info} 
 PROM_RETENTION_TIME=${PROM_RETENTION_TIME:-"30s"}
 PROM_RETENTION_SIZE=${PROM_RETENTION_SIZE:-"512MB"}
 
-GF_PATHS_PLUGINS=${GF_PATHS_PLUGINS:-"/var/lib/grafana/plugins"}
-GF_PATHS_DATA=${GF_PATHS_DATA:-"/var/lib/grafana"}
-GF_PATHS_LOGS=${GF_PATHS_LOGS:-"/var/log/grafana"}
-GF_PATHS_PROVISIONING=${GF_PATHS_PROVISIONING:-"/etc/grafana/provisioning"}
-GRAFANA_EXECUTABLE_PROGRAM=/usr/share/grafana/grafana-server
+DEV_MODE="${1:-off}"
+GF_LOG_MODE="${2:-console}"
+GF_PATHS_PLUGINS="${3:-/var/lib/grafana/plugins}"
+GF_PATHS_DATA="${4:-/var/lib/grafana}"
+GF_PATHS_LOGS="${5:-/var/log/grafana}"
+GF_PATHS_PROVISIONING="${6:-/etc/grafana/provisioning}"
+
+parse_cmd_args() {
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --GRAFANA_PORT)
+                GRAFANA_PORT="$2"
+                shift 2
+                ;;
+            --PROM_PORT)
+                PROM_PORT="$2"
+                shift 2
+                ;;
+            --PROM_LOGLEVEL)
+                PROM_LOGLEVEL="$2"
+                shift 2
+                ;;
+            --GF_PATHS_DATA)
+                GF_PATHS_DATA="$2"
+                shift 2
+                ;;
+            --GF_PATHS_PLUGINS)
+                GF_PATHS_PLUGINS="$2"
+                shift 2
+                ;;
+            --DEV_MODE)
+                DEV_MODE="$2"
+                shift 2
+                ;;
+            --GF_PATHS_PROVISIONING)
+                GF_PATHS_PROVISIONING="$2"
+                shift 2
+                ;;
+            --GF_PATHS_LOGS)
+                GF_PATHS_LOGS="$2"
+                shift 2
+                ;;
+            --GF_LOG_MODE)
+                GF_LOG_MODE="$2"
+                shift 2
+                ;;
+            --*)
+                echo "Unknown option: $1" >&2
+                shift 1
+                ;;
+            *)
+                # Positional arg
+                echo "Ignoring positional argument: $1"
+                shift 1
+                ;;
+        esac
+    done
+}
+
+
+parse_cmd_args "$@"
 
 if [ ! -x "$PROMETHEUS_EXECUTABLE_PROGRAM" ]; then
     echo "Error: Prometheus executable not found or not executable at $PROMETHEUS_EXECUTABLE_PROGRAM"
@@ -118,23 +178,57 @@ else
     exit 1
 fi
 
+
 # Start Grafana as a daemon (in the background)
-if [ -x "$GRAFANA_EXECUTABLE_PROGRAM"]; then 
-    /usr/share/grafana/grafana-server \
-    --homepath=/usr/share/grafana \
-    --config=/etc/grafana/grafana.ini \
-    cfg:default.paths.plugins=$GF_PATHS_PLUGINS \
-    cfg:default.paths.data=$GF_PATHS_DATA \
-    cfg:default.paths.logs=$GF_PATHS_LOGS \
-    cfg:default.paths.provisioning=$GF_PATHS_PROVISIONING \
-    & echo "Waiting for Grafana to start..."
-    
-    until curl -s http://localhost:${GRAFANA_PORT}/api/health >/dev/null; do
-    sleep 1
+if [ "$DEV_MODE" = "on" ] && [ -x "$GRAFANA_EXECUTABLE_PROGRAM" ]; then
+    echo "Starting Grafana as daemon..."
+    echo "Grafana config file: /etc/grafana/grafana.ini"
+    echo "Grafana homepath: /usr/share/grafana"
+    echo "Grafana plugins dir: $GF_PATHS_PLUGINS"
+
+    [ -f /etc/grafana/grafana.ini ] || { echo "Grafana config file not found"; exit 1; }
+
+    nohup su -s /bin/sh grafana -c "
+        cd /usr/share/grafana &&
+        /usr/share/grafana/grafana server \
+            --homepath=/usr/share/grafana \
+            --config=/etc/grafana/grafana.ini \
+            cfg:default.paths.plugins=\"$GF_PATHS_PLUGINS\" \
+            cfg:default.paths.data=\"$GF_PATHS_DATA\" \
+            cfg:default.paths.logs=\"$GF_PATHS_LOGS\" \
+            cfg:default.paths.provisioning=\"$GF_PATHS_PROVISIONING\" \
+            cfg:log.mode=\"$GF_LOG_MODE\" > /dev/null 2>&1 &"
+
+    echo "Waiting for Grafana to start…"
+    until curl -s "http://localhost:${GRAFANA_PORT:-3000}/api/health" >/dev/null; do
+        sleep 1
     done
     echo "Grafana started"
+
+    if [ "$DEV_MODE" = "on" ] && [ -n "$GF_INSTALL_PLUGINS" ]; then
+        OLDIFS=$IFS
+        IFS=','                   # split on commas
+        set -e                    # exit on error
+        for plugin in $GF_INSTALL_PLUGINS; do
+            IFS=$OLDIFS           # restore default word‑splitting for each body
+            if printf '%s\n' "$plugin" | gre p -q ';'; then
+                pluginUrl=${plugin%%;*}
+                pluginInstallFolder=${plugin#*;}
+                su -s /bin/sh grafana -c \
+                    "/usr/share/grafana/grafana cli \
+                     --pluginUrl \"$pluginUrl\" \
+                     --pluginsDir \"$GF_PATHS_PLUGINS\" \
+                     plugins install \"$pluginInstallFolder\""
+            else
+                su -s /bin/sh grafana -c \
+                    "/usr/share/grafana/grafana cli \
+                     --pluginsDir \"$GF_PATHS_PLUGINS\" plugins install \"$plugin\""
+            fi
+        done
+        IFS=$OLDIFS
+    fi
 else
-    echo "Skipping grafana startup due to missing executable"
+    echo "Skipping Grafana startup: DEV_MODE = $DEV_MODE or executable not found"
 fi
 
 
