@@ -1,6 +1,7 @@
 
 # Firewatch
-![image](https://github.com/user-attachments/assets/334f7a13-e591-41e2-a1a1-5f6b2d68a860)
+<img width="1300" height="945" alt="image" src="https://github.com/user-attachments/assets/81691e34-177b-43ce-8ba2-94cff7e6e81a" />
+
 
 **Firewatch** is a robust, Prometheus-based service monitoring and observability solution. Designed to help you track metrics, visualize performance, and ensure your systems remain resilient, firewatch provides real-time insights to illuminate your infrastructure’s blind spots.
 
