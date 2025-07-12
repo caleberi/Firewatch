@@ -200,18 +200,26 @@ if [ "$DEV_MODE" = "on" ] && [ -x "$GRAFANA_EXECUTABLE_PROGRAM" ]; then
             cfg:log.mode=\"$GF_LOG_MODE\" > /dev/null 2>&1 &"
 
     echo "Waiting for Grafana to start…"
-    until curl -s "http://localhost:${GRAFANA_PORT:-3000}/api/health" >/dev/null; do
+    i=1
+    while [ $i -le 30 ]; do
+        if curl -s "http://localhost:${GRAFANA_PORT:-3000}/api/health" >/dev/null; then
+            echo "Grafana started"
+            break
+        fi
         sleep 1
+        i=$((i + 1))
     done
-    echo "Grafana started"
-
+    if [ $i -gt 30 ]; then
+        echo "Error: Grafana failed to start"
+        exit 1
+    fi
     if [ "$DEV_MODE" = "on" ] && [ -n "$GF_INSTALL_PLUGINS" ]; then
         OLDIFS=$IFS
         IFS=','                   # split on commas
         set -e                    # exit on error
         for plugin in $GF_INSTALL_PLUGINS; do
             IFS=$OLDIFS           # restore default word‑splitting for each body
-            if printf '%s\n' "$plugin" | gre p -q ';'; then
+            if printf '%s\n' "$plugin" | grep -q ';'; then
                 pluginUrl=${plugin%%;*}
                 pluginInstallFolder=${plugin#*;}
                 su -s /bin/sh grafana -c \

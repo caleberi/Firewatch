@@ -5,7 +5,7 @@ ARG BASE_OS_VERSION=3.22
 
 
 FROM ${BASE_OS_IMAGE}:${BASE_OS_VERSION} AS builder
-RUN apk add curl python3 py3-pip python3-dev build-base
+RUN apk add curl python3 py3-pip python3-dev build-base 
 
 
 ARG BUILD_VERSION=unknown
