@@ -1,10 +1,10 @@
 from os import path,getcwd,environ
-from yaml import safe_dump,safe_load,YAMLError
+from yaml import safe_dump,safe_load,YAMLError # type: ignore
 import sys
 import re
 import json
 from typing import Any, List, Union
-from dotenv import load_dotenv
+from dotenv import load_dotenv # type: ignore
 import glob
 
 def load_population_file(file_path: str) -> Any:
