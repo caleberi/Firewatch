@@ -30,9 +30,9 @@ LABEL org.opencontainers.image.source="https://github.com/caleberi/firewatch"
 LABEL com.firewatch.service="service-watcher"
 # Define Prometheus process ID and environment variables for configuration
 ARG PROM_PID="prometheus"
+ARG PROM_PORT=9090
 ARG PROM_SETUP_DIR=/etc/prometheus
 ENV PROM_LOGLEVEL="info" \
-    PROM_PORT=9090 \
     PROM_RETENTION_TIME="30s" \
     PROM_RETENTION_SIZE="512MB" \
     PROMETHEUS_CONFIG_FILE=$PROM_SETUP_DIR/prometheus.yml \
@@ -64,7 +64,7 @@ COPY ./rules ${RULES_DIR}
 COPY ./alerts ${ALERT_DIR} 
 COPY ./scrapes ${SCRAPE_DIR} 
 COPY ./populate.json ${POPULATION_FILE} 
-COPY ./prom-builder.py /prom-builder.py 
+COPY ./prom-builder.py prom-builder.py 
 COPY prometheus/prometheus.sh /prometheus.sh
 
 USER root
