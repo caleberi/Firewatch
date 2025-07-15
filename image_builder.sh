@@ -9,11 +9,13 @@ set -e
 #   It supports version management, dry-run mode, multiple tags, and configuration via a build.conf file.
 #
 # Options:
-#   -u, --username <username>    Docker Hub username (required)
-#   -p, --password <password>    Docker Hub password (required)
+#   -u, --username <username>   Docker Hub username (required)
+#   -p, --password <password>   Docker Hub password (required)
 #   -a, --account <account>     Docker Hub account/organization (required)
 #   --dry-run                   Simulate operations without executing them
 #   --increment=<type>          Increment version (major, minor, or patch)
+#.  --no-push                   Avoid pushing to docker hub
+#.  --rebuild                   Rebuild images 
 #
 # Examples:
 #   ./image_builder.sh -u myuser -p mypass -a myaccount
@@ -35,6 +37,8 @@ RETRY_DELAY=5
 CONFIG_FILE="build.conf"
 DRY_RUN=false
 USE_BUILDX=false
+NO_PUSH=false
+REBUILD=false
 
 # Default version numbers
 MAJOR=1
@@ -151,6 +155,8 @@ fi
 while [[ $# -gt 0 ]]; do
     case $1 in
         --dry-run) DRY_RUN=true; shift;;
+        --no-push) NO_PUSH=true; shift;;
+        --rebuild) REBUILD=true; shift;;
         --use-buildx) USE_BUILDX=true; shift;;
         --increment=*) increment_version "${1#*=}"; shift;;
         -u|--username) DOCKER_USERNAME="$2"; shift 2;;
@@ -160,7 +166,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-validate_credentials "$DOCKER_USERNAME" "$DOCKER_PASSWORD" "$DOCKER_ACCOUNT"
 VERSION_TAG="${MAJOR}.${MINOR}.${PATCH}"
 validate_version "$MAJOR" "$MINOR" "$PATCH"
 
@@ -173,7 +178,7 @@ GRAFANA_PLUGINS="grafana-clock-panel 1.0.1,grafana-simple-json-datasource 1.3.5"
 GRAFANA_RENDER_PLUGIN="https://github.com/grafana/grafana-image-renderer/releases/latest/download/plugin-alpine-x64-no-chromium.zip"
 
 # Check if Prometheus image exists
-if [ "$DRY_RUN" = false ] && docker image ls -q "${PROMETHEUS_IMAGE}:${VERSION_TAG}" | grep -q .; then
+if [ "$DRY_RUN" = false ] && [ "$REBUILD" = false ]  && docker image ls -q "${PROMETHEUS_IMAGE}:${VERSION_TAG}" | grep -q .; then
     log_message "${PROMETHEUS_IMAGE}:${VERSION_TAG} already exists. Skipping build process."
     exit 0
 fi
@@ -226,6 +231,7 @@ else
     docker buildx build -t "${PROMETHEUS_IMAGE}:${VERSION_TAG}" --no-cache \
     --build-arg PROM_PID=prometheus \
     --build-arg PROM_SETUP_DIR=/etc/prometheus \
+    --build-arg PROM_PORT=9091 \
     --progress=plain -f prometheus/Dockerfile . >> build_prometheus.log 2>&1 || {
         log_message "Error: Building ${PROMETHEUS_IMAGE}:${VERSION_TAG} failed"
         exit 1
@@ -235,22 +241,26 @@ fi
 # Tag Prometheus image with 'latest'
 tag_image "${PROMETHEUS_IMAGE}:${VERSION_TAG}" "${PROMETHEUS_IMAGE}:latest"
 
-# Login to Docker Hub
-if [ "$DRY_RUN" = true ]; then
-    log_message "DRY-RUN: Would login to Docker Hub"
-else
-    log_message "Logging in to Docker Hub"
-    echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin >> docker_login.log 2>&1 || {
-        log_message "Error: Docker Hub authentication failed"
-        exit 1
-    }
-fi
+if [ "$NO_PUSH" != true ]; then
+    validate_credentials "$DOCKER_USERNAME" "$DOCKER_PASSWORD" "$DOCKER_ACCOUNT"
+    # Login to Docker Hub
+    if [ "$DRY_RUN" = true ]; then
+        log_message "DRY-RUN: Would login to Docker Hub"
+    else
+        log_message "Logging in to Docker Hub"
+        echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin >> docker_login.log 2>&1 || {
+            log_message "Error: Docker Hub authentication failed"
+            exit 1
+        }
+    fi
 
-# Push images to Docker Hub
-push_image "${GRAFANA_IMAGE}:${VERSION_TAG}"
-push_image "${GRAFANA_IMAGE}:latest"
-push_image "${PROMETHEUS_IMAGE}:${VERSION_TAG}"
-push_image "${PROMETHEUS_IMAGE}:latest"
+    # Push images to Docker Hub
+    push_image "${GRAFANA_IMAGE}:${VERSION_TAG}"
+    push_image "${GRAFANA_IMAGE}:latest"
+    push_image "${PROMETHEUS_IMAGE}:${VERSION_TAG}"
+    push_image "${PROMETHEUS_IMAGE}:latest"
+
+fi
 
 log_message "Successfully built, tagged, and pushed images:"
 log_message "*) ${GRAFANA_IMAGE}:${VERSION_TAG}"
