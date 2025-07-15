@@ -1,14 +1,13 @@
-version: '3.8'
-
 services:
   prometheus:
     image: ${DOCKER_ACCOUNT}/prometheus:${VERSION_TAG:-1.0.0}
     container_name: prometheus
     ports:
-      - "9090:9090"
+      - "9091:9091"
+    expose:
+      - "9091"
     volumes:
       - prometheus_data:/etc/prometheus
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
     env_file:
       - .env
     networks:
@@ -24,9 +23,10 @@ services:
     container_name: grafana
     ports:
       - "3000:3000"
+    expose:
+      - "9091"
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./grafana/provisioning:/etc/grafana/provisioning
     environment:
       - GF_LOG_MODE=console
       - GF_SERVER_HTTP_PORT=3000
