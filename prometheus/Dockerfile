@@ -15,7 +15,9 @@ RUN python3 -m venv /venv && \
     ls -l /venv/bin/python3
 # Download and extract only the required Prometheus binaries
 ARG PROM_EXECUTABLE_VERSION_URL="https://github.com/prometheus/prometheus/releases/download/v3.4.1/prometheus-3.4.1.linux-amd64.tar.gz"
-RUN curl -sL ${PROM_EXECUTABLE_VERSION_URL} | tar -xzf - -C /usr/bin --strip-components=1 prometheus-3.4.1.linux-amd64/prometheus prometheus-3.4.1.linux-amd64/promtool
+ARG PROM_ALERTMANAGER_EXECUTABLE_URL="https://github.com/prometheus/alertmanager/releases/download/v0.28.1/alertmanager-0.28.1.linux-amd64.tar.gz"
+RUN curl -sL ${PROM_EXECUTABLE_VERSION_URL} | tar -xzf - -C /usr/bin --strip-components=1 prometheus-3.4.1.linux-amd64/prometheus 
+RUN curl -sL ${PROM_ALERTMANAGER_EXECUTABLE_URL} | tar -xzf - -C /usr/bin --strip-components=1 alertmanager-0.28.1.linux-amd64/alertmanager 
 
 # Stage 2: Final image
 FROM ${BASE_OS_IMAGE}:${BASE_OS_VERSION}
@@ -31,6 +33,7 @@ LABEL com.firewatch.service="service-watcher"
 # Define Prometheus process ID and environment variables for configuration
 ARG PROM_PID="prometheus"
 ARG PROM_PORT=9090
+ARG ALERT_MANAGER_PORT=9093
 ARG PROM_SETUP_DIR=/etc/prometheus
 ENV PROM_LOGLEVEL="info" \
     PROM_RETENTION_TIME="30s" \
@@ -54,7 +57,8 @@ WORKDIR /prometheus
 
 # Copy Prometheus binaries from builder stage
 COPY --from=builder /usr/bin/prometheus /usr/bin/prometheus
-COPY --from=builder /usr/bin/promtool /usr/bin/promtool
+COPY --from=builder /usr/bin/alertmanager /usr/bin/alertmanager
+
 # Copy Python virtual environment from builder stage
 COPY --from=builder /venv /venv
 # Copy configuration files and directories, setting ownership
@@ -65,6 +69,7 @@ COPY ./alerts ${ALERT_DIR}
 COPY ./scrapes ${SCRAPE_DIR} 
 COPY ./populate.json ${POPULATION_FILE} 
 COPY ./prom-builder.py prom-builder.py 
+COPY ./alertmanager.yml alertmanager.yml
 COPY prometheus/prometheus.sh /prometheus.sh
 
 USER root
@@ -72,7 +77,7 @@ USER root
 RUN chmod +x /prometheus.sh
 
 # Expose the Prometheus port
-EXPOSE ${PROM_PORT}
+EXPOSE ${PROM_PORT} ${ALERT_MANAGER_PORT}
 # Define a healthcheck
 HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
     CMD curl -f http://localhost:${PROM_PORT}/-/healthy || exit 1

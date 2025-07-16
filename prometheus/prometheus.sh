@@ -4,7 +4,8 @@ set -e
 source /venv/bin/activate || { echo "Could not activate environment variable"; exit 1;}
 
 PROMETHEUS_EXECUTABLE_PROGRAM=$(which prometheus)
-PROMETHEUS_TOOL_EXECUTABLE_PROGRAM=$(which promtool)
+PROMETHEUS_ALERTMANAGER_EXECUTABLE_PROGRAM=$(which alertmanager)
+ALERT_CONFIG_FILE=/etc/prometheus/alertmanager.yml
 PYTHON_EXECUTABLE=/venv/bin/python3
 
 if [ ! -x "$PROMETHEUS_EXECUTABLE_PROGRAM" ]; then
@@ -12,10 +13,7 @@ if [ ! -x "$PROMETHEUS_EXECUTABLE_PROGRAM" ]; then
     exit 1
 fi
 
-if [ ! -x "$PROMETHEUS_TOOL_EXECUTABLE_PROGRAM" ]; then
-    echo "Error: Promtool executable not found or not executable at $PROMETHEUS_TOOL_EXECUTABLE_PROGRAM"
-    exit 1
-fi
+
 
 if [ -f "$PROMETHEUS_WEB_CONFIG_FILE" ]; then
     echo "Processing web config: $PROMETHEUS_WEB_CONFIG_FILE with prom-builder.py..."
@@ -100,6 +98,10 @@ if [ -f "$PROMETHEUS_CONFIG_FILE" ]; then
 else
     echo "Error: Configuration file $PROMETHEUS_CONFIG_FILE not found"
     exit 1
+fi
+
+if [[ -x "$PROMETHEUS_ALERTMANAGER_EXECUTABLE_PROGRAM" && -f "$ALERT_CONFIG_FILE" ]]; then
+    nohup "$PROMETHEUS_ALERTMANAGER_EXECUTABLE_PROGRAM" --config.file="$ALERT_CONFIG_FILE" &
 fi
 
 echo "Starting Prometheus With $PROMETHEUS_CONFIG_FILE..."
