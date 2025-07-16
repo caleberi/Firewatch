@@ -44,7 +44,8 @@ ENV PROM_LOGLEVEL="info" \
     POPULATION_FILE=$PROM_SETUP_DIR/populate.json \
     RULES_DIR=$PROM_SETUP_DIR/rules \
     SCRAPE_DIR=$PROM_SETUP_DIR/scrapes \
-    ALERT_DIR=$PROM_SETUP_DIR/alerts
+    ALERT_DIR=$PROM_SETUP_DIR/alerts \
+    TEMPLATE_DIR=${PROM_SETUP_DIR}/templates 
 
 
 # Create a non-root user and group for running Prometheus
@@ -68,6 +69,7 @@ COPY ./web.yml ${PROMETHEUS_WEB_CONFIG_FILE}
 COPY ./rules ${RULES_DIR} 
 COPY ./alerts ${ALERT_DIR} 
 COPY ./scrapes ${SCRAPE_DIR} 
+COPY ./templates  ${TEMPLATE_DIR}
 COPY ./populate.json ${POPULATION_FILE} 
 COPY ./prom-builder.py prom-builder.py 
 COPY ./alertmanager.yml alertmanager.yml
