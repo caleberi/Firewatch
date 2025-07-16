@@ -33,6 +33,7 @@ LABEL com.firewatch.service="service-watcher"
 # Define Prometheus process ID and environment variables for configuration
 ARG PROM_PID="prometheus"
 ARG PROM_PORT=9090
+# don't change the alertmanager port
 ARG ALERT_MANAGER_PORT=9093
 ARG PROM_SETUP_DIR=/etc/prometheus
 ENV PROM_LOGLEVEL="info" \
@@ -80,6 +81,6 @@ RUN chmod +x /prometheus.sh
 EXPOSE ${PROM_PORT} ${ALERT_MANAGER_PORT}
 # Define a healthcheck
 HEALTHCHECK --interval=15s --timeout=10s --start-period=30s --retries=3 \
-    CMD curl -f http://localhost:${PROM_PORT}/-/healthy || exit 1
+    CMD curl -f http://localhost:${PROM_PORT}/-/healthy && curl -f http://localhost:${ALERT_MANAGER_PORT}/-/healthy || exit 1
 # Set the entrypoint
 ENTRYPOINT ["/prometheus.sh"]
