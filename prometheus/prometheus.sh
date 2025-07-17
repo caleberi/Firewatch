@@ -5,6 +5,7 @@ source /venv/bin/activate || { echo "Could not activate environment variable"; e
 
 PROMETHEUS_EXECUTABLE_PROGRAM=$(which prometheus)
 PROMETHEUS_ALERTMANAGER_EXECUTABLE_PROGRAM=$(which alertmanager)
+PROMETHEUS_TOOL_EXECUTABLE_PROGRAM=$(which promtool)
 ALERT_CONFIG_FILE=/etc/prometheus/alertmanager.yml
 PYTHON_EXECUTABLE=/venv/bin/python3
 
