@@ -16,8 +16,8 @@ RUN python3 -m venv /venv && \
 # Download and extract only the required Prometheus binaries
 ARG PROM_EXECUTABLE_VERSION_URL="https://github.com/prometheus/prometheus/releases/download/v3.4.1/prometheus-3.4.1.linux-amd64.tar.gz"
 ARG PROM_ALERTMANAGER_EXECUTABLE_URL="https://github.com/prometheus/alertmanager/releases/download/v0.28.1/alertmanager-0.28.1.linux-amd64.tar.gz"
-RUN curl -sL ${PROM_EXECUTABLE_VERSION_URL} | tar -xzf - -C /usr/bin --strip-components=1 prometheus-3.4.1.linux-amd64/prometheus 
-RUN curl -sL ${PROM_ALERTMANAGER_EXECUTABLE_URL} | tar -xzf - -C /usr/bin --strip-components=1 alertmanager-0.28.1.linux-amd64/alertmanager 
+RUN curl -sL ${PROM_EXECUTABLE_VERSION_URL} | tar -xzf - -C /usr/bin --strip-components=1 prometheus-3.4.1.linux-amd64/prometheus prometheus-3.4.1.linux-amd64/promtool
+RUN curl -sL ${PROM_ALERTMANAGER_EXECUTABLE_URL} | tar -xzf - -C /usr/bin --strip-components=1 alertmanager-0.28.1.linux-amd64 
 
 # Stage 2: Final image
 FROM ${BASE_OS_IMAGE}:${BASE_OS_VERSION}
@@ -59,6 +59,7 @@ WORKDIR /prometheus
 
 # Copy Prometheus binaries from builder stage
 COPY --from=builder /usr/bin/prometheus /usr/bin/prometheus
+COPY --from=builder /usr/bin/promtool /usr/bin/promtool
 COPY --from=builder /usr/bin/alertmanager /usr/bin/alertmanager
 
 # Copy Python virtual environment from builder stage
