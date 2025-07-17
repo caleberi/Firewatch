@@ -211,7 +211,8 @@ else
     --build-arg BASE_OS_VERSION=12.0.2 \
     --build-arg GRAFANA_PORT=3000 \
     --build-arg GF_LOG_MODE=console \
-    --build-arg GF_INSTALL_IMAGE_RENDERER_PLUGIN=false \
+    --build-arg GF_INSTALL_IMAGE_RENDERER_PLUGIN=true \
+    --build-arg GF_INSTALL_MONGODB_DATASOURCE_PLUGIN=true \
     --build-arg GF_INSTALL_PLUGINS="${GRAFANA_PLUGINS}" \
     --build-arg GF_PLUGIN_IMAGE_RENDER_URL="${GRAFANA_RENDER_PLUGIN}" \
     --progress=plain -f grafana/Dockerfile . >> build_grafana.log 2>&1 || {
