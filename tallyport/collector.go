@@ -85,7 +85,7 @@ type MetricRequest struct {
 	} `json:"summary"`
 }
 
-func SetupRouter(mc *CollectorRegistry) *chi.Mux {
+func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
@@ -94,7 +94,6 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.AllowContentType("application/json"))
 	r.Use(middleware.RequestSize(1024))
-	r.Handle("/metrics", promhttp.Handler())
 
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
@@ -123,6 +122,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 		})
 	})
 
+	r.Handle("/metrics", promhttp.Handler())
 	r.Post("/push", func(res http.ResponseWriter, req *http.Request) {
 		var metricReq MetricRequest
 		if !parseRequestBody(req, res, &metricReq) {
@@ -244,7 +244,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 				metricReq.Labels,
 			)
 			mc.counters.cache[metricKey] = counter
-			prometheus.MustRegister(counter)
+			reg.MustRegister(counter)
 
 		case _HISTOGRAM_:
 			mc.histograms.Lock()
@@ -266,7 +266,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 				metricReq.Labels,
 			)
 			mc.histograms.cache[metricKey] = histogram
-			prometheus.MustRegister(histogram)
+			reg.MustRegister(histogram)
 		case _GAUGE_:
 			mc.gauges.Lock()
 			defer mc.gauges.Unlock()
@@ -282,7 +282,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 				metricReq.Labels,
 			)
 			mc.gauges.cache[metricKey] = gauge
-			prometheus.MustRegister(gauge)
+			reg.MustRegister(gauge)
 
 		case _SUMMARY_:
 			mc.summary.Lock()
@@ -305,7 +305,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 				metricReq.Labels,
 			)
 			mc.summary.cache[metricKey] = summary
-			prometheus.MustRegister(summary)
+			reg.MustRegister(summary)
 		}
 
 		res.WriteHeader(http.StatusCreated)
