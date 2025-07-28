@@ -21,10 +21,10 @@ const (
 )
 
 var supportPrometheusType = map[string]bool{
-	"counter":   true,
-	"histogram": true,
-	"gauge":     true,
-	"summary":   true,
+	_COUNTER_:   true,
+	_HISTOGRAM_: true,
+	_GAUGE_:     true,
+	_SUMMARY_:   true,
 }
 
 type Metric struct {
