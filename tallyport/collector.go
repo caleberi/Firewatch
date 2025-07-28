@@ -13,6 +13,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+const (
+	_SUMMARY_   = "summary"
+	_GAUGE_     = "gauge"
+	_HISTOGRAM_ = "histogram"
+	_COUNTER_   = "counter"
+)
+
 var supportPrometheusType = map[string]bool{
 	"counter":   true,
 	"histogram": true,
@@ -130,7 +137,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 		metricKey := Metric{hash: metricReq.Name}
 
 		switch metricReq.Type {
-		case "counter":
+		case _COUNTER_:
 			mc.counters.Lock()
 			defer mc.counters.Unlock()
 			counter, exists := mc.counters.cache[metricKey]
@@ -143,7 +150,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 				Message: fmt.Sprintf("Counter %s updated", metricReq.Name),
 			})
 			return
-		case "histogram":
+		case _HISTOGRAM_:
 			mc.histograms.Lock()
 			defer mc.histograms.Unlock()
 			histogram, exists := mc.histograms.cache[metricKey]
@@ -159,7 +166,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 			json.NewEncoder(res).Encode(MetricResponse{
 				Message: fmt.Sprintf("Histogram %s updated", metricReq.Name),
 			})
-		case "gauge":
+		case _GAUGE_:
 			mc.gauges.Lock()
 			defer mc.gauges.Unlock()
 
@@ -180,7 +187,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 				MetricResponse{
 					Message: fmt.Sprintf("Gauge %s updated", metricReq.Name),
 				})
-		case "summary":
+		case _SUMMARY_:
 			mc.summary.Lock()
 			defer mc.summary.Unlock()
 			summary, exists := mc.summary.cache[metricKey]
@@ -222,7 +229,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 		}
 
 		switch metricReq.Type {
-		case "counter":
+		case _COUNTER_:
 			mc.counters.Lock()
 			defer mc.counters.Unlock()
 			if _, exists := mc.counters.cache[metricKey]; exists {
@@ -239,7 +246,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 			mc.counters.cache[metricKey] = counter
 			prometheus.MustRegister(counter)
 
-		case "histogram":
+		case _HISTOGRAM_:
 			mc.histograms.Lock()
 			defer mc.histograms.Unlock()
 			if _, exists := mc.histograms.cache[metricKey]; exists {
@@ -260,7 +267,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 			)
 			mc.histograms.cache[metricKey] = histogram
 			prometheus.MustRegister(histogram)
-		case "gauge":
+		case _GAUGE_:
 			mc.gauges.Lock()
 			defer mc.gauges.Unlock()
 			if _, exists := mc.gauges.cache[metricKey]; exists {
@@ -277,7 +284,7 @@ func SetupRouter(mc *CollectorRegistry) *chi.Mux {
 			mc.gauges.cache[metricKey] = gauge
 			prometheus.MustRegister(gauge)
 
-		case "summary":
+		case _SUMMARY_:
 			mc.summary.Lock()
 			defer mc.summary.Unlock()
 			if _, exists := mc.summary.cache[metricKey]; exists {
