@@ -63,7 +63,7 @@ func main() {
 	}
 
 	collectionRegistry := NewCollectorRegistry()
-	key := Metric{hash: "__tallyport__", description: "Number of metrics processed by tallyport"}
+	key := Metric{hash: "__tallyport__"}
 	collectionRegistry.counters.cache[key] = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "__tallyport__",
@@ -73,7 +73,7 @@ func main() {
 		},
 		[]string{"method", "endpoint", "status"},
 	)
-	latencyKey := Metric{hash: "__tallyport__latency__", description: "Request latency in seconds"}
+	latencyKey := Metric{hash: "__tallyport__latency__"}
 	collectionRegistry.histograms.cache[latencyKey] = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "__tallyport__",
@@ -84,15 +84,18 @@ func main() {
 		},
 		[]string{"method", "endpoint"},
 	)
-	prometheus.MustRegister(
+	reg := prometheus.NewRegistry()
+	reg.MustRegister(
+		collectionRegistry.counters.cache[key],
+		collectionRegistry.histograms.cache[latencyKey],
 		collectors.NewGoCollector(),
 		collectors.NewProcessCollector(collectors.ProcessCollectorOpts{ReportErrors: true}),
-		collectionRegistry.counters.cache[key],
-		collectionRegistry.histograms.cache[latencyKey])
+	)
+
 	engine.NewServer(
 		config.ServerConfig.ServerName,
 		config.ServerConfig.Port, logger,
-		config.ServerConfig.TlsPath, SetupRouter(collectionRegistry), opts).Serve()
+		config.ServerConfig.TlsPath, SetupRouter(reg, collectionRegistry), opts).Serve()
 }
 
 func parseRequestBody(r *http.Request, w http.ResponseWriter, metricReq *MetricRequest) bool {
