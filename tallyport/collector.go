@@ -26,7 +26,7 @@ type Metric struct {
 }
 
 type CacheMap[T any] struct {
-	sync.RWMutex
+	sync.Mutex
 	cache map[Metric]*T
 }
 
