@@ -84,7 +84,7 @@ func NewServer(
 		colorizedLogger := zerolog.NewConsoleWriter()
 		{
 			colorizedLogger.NoColor = false
-			colorizedLogger.FormatLevel = func(i interface{}) string {
+			colorizedLogger.FormatLevel = func(i any) string {
 				return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
 			}
 		}
@@ -123,9 +123,13 @@ func (s *Server) Serve() {
 		}
 
 		s.server.TLSConfig = &tls.Config{
+			ServerName:         s.ServerName,
 			Certificates:       certificates,
 			InsecureSkipVerify: false,
 			ClientAuth:         tls.VerifyClientCertIfGiven,
+			Time: func() time.Time {
+				return time.Now()
+			},
 		}
 	}
 
@@ -178,8 +182,8 @@ func (s *Server) Shutdown() {
 //   - A slice of tls.Certificate objects for the loaded certificate-key pairs.
 //   - An error if the directory cannot be read, a key is missing, or a certificate pair fails to load.
 func collectTlsCertificates(directory string) ([]tls.Certificate, error) {
-	certFiles := make(map[string]string)
 	keyFiles := make(map[string]string)
+	certFiles := make(map[string]string)
 
 	err := fs.WalkDir(
 		os.DirFS(directory), ".",
@@ -192,7 +196,7 @@ func collectTlsCertificates(directory string) ([]tls.Certificate, error) {
 				return nil
 			}
 
-			fullPath := filepath.Join(directory, path)
+			fullPath := filepath.Clean(filepath.Join(directory, path))
 			switch {
 			case strings.HasSuffix(d.Name(), ".cert"):
 				certFiles[d.Name()] = fullPath

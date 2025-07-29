@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -28,8 +29,7 @@ var supportPrometheusType = map[string]bool{
 }
 
 type Metric struct {
-	hash        string
-	description string
+	hash string
 }
 
 type CacheMap[T any] struct {
@@ -70,18 +70,18 @@ type MetricResponse struct {
 type MetricRequest struct {
 	Type        string   `json:"type"`
 	Name        string   `json:"name"`
-	Description string   `json:"description"`
+	Description string   `json:"description,omitempty"`
 	Labels      []string `json:"labels,omitempty"`
 	Gauge       struct {
-		Label []string  `json:"label,omitempty"`
-		Value []float64 `json:"value,omitempty"`
+		Value float64 `json:"value,omitempty"`
 	} `json:"gauge"`
 	Histogram struct {
-		Buckets []BucketValue `json:"buckets,omitempty"`
+		Buckets       []float64 `json:"buckets,omitempty"`
+		ObservedValue float64   `json:"observed_value,omitzero"`
 	} `json:"histogram"`
 	Summary struct {
-		Objectives map[float64]float64 `json:"objectives,omitempty"`
-		MaxAge     int64               `json:"max_age,omitempty"`
+		Objectives map[string]float64 `json:"objectives,omitempty"`
+		MaxAge     int64              `json:"max_age,omitempty"`
 	} `json:"summary"`
 }
 
@@ -109,7 +109,6 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 				cache := mc.counters.cache[Metric{hash: "__tallyport__"}]
 				cache.WithLabelValues(method, endpoint, status).Inc()
 				mc.counters.Unlock()
-
 			}
 
 			{
@@ -122,7 +121,12 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 		})
 	})
 
-	r.Handle("/metrics", promhttp.Handler())
+	r.Handle("/metrics", promhttp.HandlerFor(
+		reg,
+		promhttp.HandlerOpts{
+			Timeout:          30 * time.Second,
+			ProcessStartTime: time.Now(),
+		}))
 	r.Post("/push", func(res http.ResponseWriter, req *http.Request) {
 		var metricReq MetricRequest
 		if !parseRequestBody(req, res, &metricReq) {
@@ -146,6 +150,7 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 				return
 			}
 			counter.WithLabelValues(metricReq.Labels...).Inc()
+			res.WriteHeader(http.StatusOK)
 			json.NewEncoder(res).Encode(MetricResponse{
 				Message: fmt.Sprintf("Counter %s updated", metricReq.Name),
 			})
@@ -159,10 +164,14 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 				return
 			}
 
-			for _, lv := range metricReq.Histogram.Buckets {
-				histogram.WithLabelValues(lv.Label).Observe(lv.Value)
+			if metricReq.Labels == nil {
+				http.Error(res, "Labels for buckets are missing", http.StatusBadRequest)
+				return
 			}
 
+			observedValue := metricReq.Histogram.ObservedValue
+			histogram.WithLabelValues(metricReq.Labels...).Observe(observedValue)
+			res.WriteHeader(http.StatusOK)
 			json.NewEncoder(res).Encode(MetricResponse{
 				Message: fmt.Sprintf("Histogram %s updated", metricReq.Name),
 			})
@@ -176,13 +185,8 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 				return
 			}
 
-			if len(metricReq.Gauge.Label) != len(metricReq.Gauge.Value) {
-				http.Error(res, "Mismatched label and value counts", http.StatusBadRequest)
-				return
-			}
-			for i, label := range metricReq.Gauge.Label {
-				gauge.WithLabelValues(label).Set(metricReq.Gauge.Value[i])
-			}
+			gauge.WithLabelValues(metricReq.Labels...).Set(metricReq.Gauge.Value)
+			res.WriteHeader(http.StatusOK)
 			json.NewEncoder(res).Encode(
 				MetricResponse{
 					Message: fmt.Sprintf("Gauge %s updated", metricReq.Name),
@@ -196,6 +200,7 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 				return
 			}
 			summary.WithLabelValues(metricReq.Labels...)
+			res.WriteHeader(http.StatusOK)
 			json.NewEncoder(res).Encode(
 				MetricResponse{
 					Message: fmt.Sprintf("Summary %s updated", metricReq.Name),
@@ -213,7 +218,7 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 			return
 		}
 
-		if metricReq.Type == "" || metricReq.Name == "" || metricReq.Description == "" {
+		if metricReq.Type == "" || metricReq.Name == "" {
 			http.Error(res, "Missing required fields: type, name, or description", http.StatusBadRequest)
 			return
 		}
@@ -224,8 +229,7 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 		}
 
 		metricKey := Metric{
-			hash:        metricReq.Name,
-			description: metricReq.Description,
+			hash: metricReq.Name,
 		}
 
 		switch metricReq.Type {
@@ -233,7 +237,8 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 			mc.counters.Lock()
 			defer mc.counters.Unlock()
 			if _, exists := mc.counters.cache[metricKey]; exists {
-				http.Error(res, "Metric already exists", http.StatusConflict)
+				text := fmt.Sprintf("Metric already exists %v", metricKey)
+				http.Error(res, text, http.StatusConflict)
 				return
 			}
 			counter := prometheus.NewCounterVec(
@@ -253,15 +258,12 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 				http.Error(res, "Metric already exists", http.StatusConflict)
 				return
 			}
-			buckets := []float64{}
-			for _, v := range metricReq.Histogram.Buckets {
-				buckets = append(buckets, v.Value)
-			}
+
 			histogram := prometheus.NewHistogramVec(
 				prometheus.HistogramOpts{
 					Name:    metricReq.Name,
 					Help:    metricReq.Description,
-					Buckets: buckets,
+					Buckets: metricReq.Histogram.Buckets,
 				},
 				metricReq.Labels,
 			)
@@ -295,11 +297,20 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 				http.Error(res, "Invalid MaxAge for summary", http.StatusBadRequest)
 				return
 			}
+			objectives := map[float64]float64{}
+			for kobj, vobj := range metricReq.Summary.Objectives {
+				v, err := strconv.ParseFloat(kobj, 64)
+				if err != nil {
+					http.Error(res, "Invalid objectives data", http.StatusBadRequest)
+					return
+				}
+				objectives[v] = vobj
+			}
 			summary := prometheus.NewSummaryVec(
 				prometheus.SummaryOpts{
 					Name:       metricReq.Name,
 					Help:       metricReq.Description,
-					Objectives: metricReq.Summary.Objectives,
+					Objectives: objectives,
 					MaxAge:     time.Duration(metricReq.Summary.MaxAge),
 				},
 				metricReq.Labels,
