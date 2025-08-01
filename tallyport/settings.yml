@@ -5,5 +5,5 @@ server_config:
   read_timeout: 10000000000
   idle_timeout: 120000000000
   server_name: "tallyport-server"
-  port: ":8080"
+  port: ":1337"
   tls_path: "/etc/tallyport/tls"
