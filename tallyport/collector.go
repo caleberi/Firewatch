@@ -14,13 +14,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// Constants defining supported Prometheus metric types.
 const (
-	_SUMMARY_   = "summary"
-	_GAUGE_     = "gauge"
+	// _SUMMARY_ represents the Prometheus summary metric type.
+	_SUMMARY_ = "summary"
+	// _GAUGE_ represents the Prometheus gauge metric type.
+	_GAUGE_ = "gauge"
+	// _HISTOGRAM_ represents the Prometheus histogram metric type.
 	_HISTOGRAM_ = "histogram"
-	_COUNTER_   = "counter"
+	// _COUNTER_ represents the Prometheus counter metric type.
+	_COUNTER_ = "counter"
 )
 
+// supportPrometheusType is a map indicating valid Prometheus metric types.
+// Keys are metric type names (e.g., "counter", "gauge"), and values are true for supported types.
 var supportPrometheusType = map[string]bool{
 	_COUNTER_:   true,
 	_HISTOGRAM_: true,
@@ -28,15 +35,21 @@ var supportPrometheusType = map[string]bool{
 	_SUMMARY_:   true,
 }
 
+// Metric represents a key for storing Prometheus metrics in a cache.
+// The hash field uniquely identifies a metric by its name.
 type Metric struct {
 	hash string
 }
 
+// CacheMap is a thread-safe map for storing Prometheus metric vectors.
+// It uses a generic type T to support different metric types (CounterVec, GaugeVec, etc.).
 type CacheMap[T any] struct {
 	sync.Mutex
 	cache map[Metric]*T
 }
 
+// CollectorRegistry manages caches for different Prometheus metric types.
+// It stores CounterVec, HistogramVec, GaugeVec, and SummaryVec instances in thread-safe maps.
 type CollectorRegistry struct {
 	counters   CacheMap[prometheus.CounterVec]
 	histograms CacheMap[prometheus.HistogramVec]
@@ -53,38 +66,70 @@ func NewCollectorRegistry() *CollectorRegistry {
 	}
 }
 
+// BucketValue represents a single bucket configuration for a histogram metric.
+// It includes a label and the upper bound value for the bucket.
 type BucketValue struct {
 	Label string  `json:"label"`
 	Value float64 `json:"value"`
 }
 
-type LabelValue struct {
-	Label string  `json:"label"`
-	Value float64 `json:"value"`
-}
-
+// MetricResponse defines the JSON response structure for metric operations.
+// It contains a message describing the result of the operations
 type MetricResponse struct {
 	Message string `json:"message"`
 }
 
+// MetricRequest defines the JSON request structure for initializing or pushing metrics.
+// It supports configuration for counter, gauge, histogram, and summary metric types.
 type MetricRequest struct {
-	Type        string   `json:"type"`
-	Name        string   `json:"name"`
-	Description string   `json:"description,omitempty"`
-	Labels      []string `json:"labels,omitempty"`
+	Type        string   `json:"type"`                  // Type of the metric (counter, gauge, histogram, summary).
+	Name        string   `json:"name"`                  // Unique name of the metric.
+	Description string   `json:"description,omitempty"` // Description of the metric (optional for push).
+	Labels      []string `json:"labels,omitempty"`      // Labels associated with the metric.
 	Gauge       struct {
-		Value float64 `json:"value,omitempty"`
-	} `json:"gauge"`
+		Value float64 `json:"value,omitempty"` // Value for gauge metric updates.
+	} `json:"gauge"` // Gauge-specific configuration.
 	Histogram struct {
-		Buckets       []float64 `json:"buckets,omitempty"`
-		ObservedValue float64   `json:"observed_value,omitzero"`
-	} `json:"histogram"`
+		Buckets       []float64 `json:"buckets,omitempty"`       // Bucket boundaries for histogram initialization.
+		ObservedValue float64   `json:"observed_value,omitzero"` // Observed value for histogram updates.
+	} `json:"histogram"` // Histogram-specific configuration.
 	Summary struct {
-		Objectives map[string]float64 `json:"objectives,omitempty"`
-		MaxAge     int64              `json:"max_age,omitempty"`
-	} `json:"summary"`
+		Objectives map[string]float64 `json:"objectives,omitempty"` // Quantile objectives for summary initialization.
+		MaxAge     int64              `json:"max_age,omitempty"`    // Maximum age for summary observations.
+	} `json:"summary"` // Summary-specific configuration.
 }
 
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Set CORS headers
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		w.Header().Set("Access-Control-Max-Age", "86400")
+
+		// Handle preflight OPTIONS requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+// SetupRouter configures and returns a chi router for handling Prometheus metric operations.
+// It sets up middleware for request handling, metrics collection, and endpoints for initializing and pushing metrics.
+// The router includes:
+// - /metrics: Exposes Prometheus metrics for scraping.
+// - /init: Initializes a new metric (counter, gauge, histogram, or summary).
+// - /push: Updates an existing metric with new values or observations.
+//
+// Parameters:
+//   - reg: Prometheus registry for registering metrics.
+//   - mc: CollectorRegistry for managing metric caches.
+//
+// Returns:
+//   - *chi.Mux: Configured chi router instance.
 func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
@@ -94,7 +139,10 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.AllowContentType("application/json"))
 	r.Use(middleware.RequestSize(1024))
-
+	r.Use(corsMiddleware)
+	// TODO - Add rate limiter
+	// TODO - Metric removal time after no usage for some time
+	// TODO - Handle race condition with metric creation
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 			start := time.Now()
@@ -121,7 +169,7 @@ func SetupRouter(reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
 		})
 	})
 
-	r.Handle("/metrics", promhttp.HandlerFor(
+	r.Handle("/api/v1/metrics", promhttp.HandlerFor(
 		reg,
 		promhttp.HandlerOpts{
 			Timeout:          30 * time.Second,
