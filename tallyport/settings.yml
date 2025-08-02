@@ -1,9 +1,57 @@
+# Configuration for the TallyPort Prometheus metrics server
+# Server configuration for HTTP server settings
 server_config:
+  # Maximum size of HTTP headers in bytes (e.g., 1MB = 1048576 bytes)
   max_header_bytes: 1048576
-  read_header_timeout: 5000000000
-  write_timeout: 10000000000
-  read_timeout: 10000000000
-  idle_timeout: 120000000000
-  server_name: "tallyport-server"
-  port: ":1337"
-  tls_path: "/etc/tallyport/tls"
+  # Timeout for reading HTTP headers in milliseconds (e.g., 5000 = 5 seconds)
+  read_header_timeout: 15000
+  # Timeout for writing HTTP responses in milliseconds (e.g., 10000 = 10 seconds)
+  write_timeout: 15000
+  # Timeout for reading HTTP requests in milliseconds (e.g., 10000 = 10 seconds)
+  read_timeout: 15000
+  # Timeout for idle HTTP connections in milliseconds (e.g., 30000 = 30 seconds)
+  idle_timeout: 30000
+  # Name of the server, used for identification
+  server_name: "tallyport"
+  # Port to listen on (e.g., ":8080" for port 8080)
+  port: ":8080"
+  # Path to TLS certificate and key directory (empty for no TLS)
+  tls_path: ""
+
+# CORS configuration for cross-origin requests
+cors_config:
+  headers:
+    # HTTP headers to set for CORS support
+    - key: "Access-Control-Allow-Origin"
+      value: "*" # Allow all origins
+    - key: "Access-Control-Allow-Methods"
+      value: "POST, GET, OPTIONS" # Allowed HTTP methods
+    - key: "Access-Control-Allow-Headers"
+      value: "Content-Type" # Allowed request headers
+
+# Throttle configuration for limiting concurrent requests
+throttle_config:
+  # Maximum number of concurrent requests allowed
+  limit: 100
+  # Maximum number of requests queued when limit is reached
+  backlog_limit: 10
+  # Timeout for queued requests (e.g., "1m" for 1 minute)
+  backlog_timeout: 1m
+  # HTTP status code for throttled requests (429 = Too Many Requests)
+  status_code: 429
+
+# Request configuration for HTTP request limits
+request_config:
+  # Maximum request body size in bytes (e.g., 1MB = 1048576 bytes)
+  request_size: 1048576
+  # Request timeout in milliseconds (e.g., 10000 = 10 seconds)
+  request_timeout: 10000
+
+# Path for health check endpoint (e.g., "/health")
+heart_beat_path: "/health"
+# Path for Prometheus metrics export endpoint (e.g., "/metrics")
+metric_export_path: "/metrics"
+# Maximum number of requests per minute for rate limiting
+rate_limit_size_per_minute: 100
+# Duration in hours after which unused metrics are removed (e.g., 24.0 = 24 hours)
+metric_expiration_hours: 24.0
