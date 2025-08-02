@@ -32,11 +32,11 @@ cors_config:
 # Throttle configuration for limiting concurrent requests
 throttle_config:
   # Maximum number of concurrent requests allowed
-  limit: 100
+  limit: 10000
   # Maximum number of requests queued when limit is reached
-  backlog_limit: 10
+  backlog_limit: 1000
   # Timeout for queued requests (e.g., "1m" for 1 minute)
-  backlog_timeout: 1m
+  backlog_timeout: 2m
   # HTTP status code for throttled requests (429 = Too Many Requests)
   status_code: 429
 
@@ -52,6 +52,6 @@ heart_beat_path: "/health"
 # Path for Prometheus metrics export endpoint (e.g., "/metrics")
 metric_export_path: "/metrics"
 # Maximum number of requests per minute for rate limiting
-rate_limit_size_per_minute: 100
+rate_limit_size_per_minute: 1000
 # Duration in hours after which unused metrics are removed (e.g., 24.0 = 24 hours)
 metric_expiration_hours: 24.0
