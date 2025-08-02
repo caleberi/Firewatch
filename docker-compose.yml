@@ -42,6 +42,19 @@ services:
     networks:
       - monitoring
     restart: unless-stopped
+
+  tallyport:
+    build: 
+      context: tallyport
+    container_name: tallyport
+    ports:
+      - "8080:8080"
+    depends_on:
+      - prometheus
+      - grafana
+    networks:
+      - monitoring
+    restart: unless-stopped
   
   renderer:
     image: grafana/grafana-image-renderer:latest

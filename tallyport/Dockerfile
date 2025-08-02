@@ -15,10 +15,10 @@ FROM alpine:3.18
 WORKDIR /app
 
 COPY --from=builder /app/tallyport .
-COPY setting.yml .
+COPY settings.yml .
 
 RUN apk add --no-cache ca-certificates
 
 EXPOSE 8080
 
-CMD ["./tallyport", "-config-file", "setting.yml"]
+CMD ["./tallyport", "-config-file", "settings.yml"]
