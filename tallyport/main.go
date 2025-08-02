@@ -1,33 +1,25 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"tallyport/engine"
 	"time"
 
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/httprate"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"gopkg.in/yaml.v2"
 )
-
-type TallyPortConfig struct {
-	ServerConfig struct {
-		MaxHeaderBytes    int    `yaml:"max_header_bytes"`
-		ReadHeaderTimeout int64  `yaml:"read_header_timeout"`
-		WriteTimeout      int64  `yaml:"write_timeout"`
-		ReadTimeout       int64  `yaml:"read_timeout"`
-		IdleTimeout       int64  `yaml:"idle_timeout"`
-		ServerName        string `yaml:"server_name"`
-		Port              string `yaml:"port"`
-		TlsPath           string `yaml:"tls_path"`
-	} `yaml:"server_config"`
-}
 
 func main() {
 
@@ -56,14 +48,14 @@ func main() {
 		DisableGeneralOptionsHandler: true,
 		UseColorizedLogger:           true,
 		MaxHeaderBytes:               config.ServerConfig.MaxHeaderBytes, // 1 MB
-		ReadHeaderTimeout:            time.Duration(config.ServerConfig.ReadHeaderTimeout),
-		WriteTimeout:                 time.Duration(config.ServerConfig.WriteTimeout),
-		IdleTimeout:                  time.Duration(config.ServerConfig.IdleTimeout),
-		ReadTimeout:                  time.Duration(config.ServerConfig.ReadTimeout),
+		ReadHeaderTimeout:            time.Duration(config.ServerConfig.ReadHeaderTimeout * int64(time.Millisecond)),
+		WriteTimeout:                 time.Duration(config.ServerConfig.WriteTimeout * int64(time.Millisecond)),
+		IdleTimeout:                  time.Duration(config.ServerConfig.IdleTimeout * int64(time.Millisecond)),
+		ReadTimeout:                  time.Duration(config.ServerConfig.ReadTimeout * int64(time.Millisecond)),
 	}
 
 	collectionRegistry := NewCollectorRegistry()
-	key := Metric{hash: "__tallyport__"}
+	key := Metric{key: "__tallyport__"}
 	collectionRegistry.counters.cache[key] = prometheus.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "__tallyport__",
@@ -73,7 +65,7 @@ func main() {
 		},
 		[]string{"method", "endpoint", "status"},
 	)
-	latencyKey := Metric{hash: "__tallyport__latency__"}
+	latencyKey := Metric{key: "__tallyport__latency__"}
 	collectionRegistry.histograms.cache[latencyKey] = prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "__tallyport__",
@@ -95,22 +87,110 @@ func main() {
 	engine.NewServer(
 		config.ServerConfig.ServerName,
 		config.ServerConfig.Port, logger,
-		config.ServerConfig.TlsPath, SetupRouter(reg, collectionRegistry), opts).Serve()
+		config.ServerConfig.TlsPath, setupRouter(config, reg, collectionRegistry), opts).Serve()
 }
 
-func parseRequestBody(r *http.Request, w http.ResponseWriter, metricReq *MetricRequest) bool {
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
-		return false
-	}
+// setupRouter configures and returns a chi router for handling Prometheus metric operations.
+// It sets up middleware for request handling, metrics collection, and endpoints for initializing and pushing metrics.
+// The router includes:
+// - /metrics: Exposes Prometheus metrics for scraping.
+// - /init: Initializes a new metric (counter, gauge, histogram, or summary).
+// - /push: Updates an existing metric with new values or observations.
+//
+// Parameters:
+//   - cfg: Server configuration
+//   - reg: Prometheus registry for registering metrics.
+//   - mc: CollectorRegistry for managing metric caches.
+//
+// Returns:
+//   - *chi.Mux: Configured chi router instance.
+func setupRouter(cfg TallyPortConfig, reg *prometheus.Registry, mc *CollectorRegistry) *chi.Mux {
+	r := chi.NewRouter()
+	r.Use(middleware.RequestID)
+	r.Use(middleware.RealIP)
+	r.Use(middleware.NoCache)
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(corsMiddleware(cfg))
+	r.Use(middleware.SupressNotFound(r))
+	r.Use(middleware.RequestSize(cfg.RequestConfig.Size))
+	r.Use(middleware.AllowContentType("application/json"))
+	r.Use(middleware.Timeout(time.Duration(cfg.RequestConfig.Timeout)))
+	r.Use(middleware.ThrottleWithOpts(middleware.ThrottleOpts{
+		Limit:          cfg.ThrottleConfig.LimitSize,
+		BacklogLimit:   cfg.ThrottleConfig.BacklogLimit,
+		StatusCode:     cfg.ThrottleConfig.StatusCode,
+		BacklogTimeout: cfg.ThrottleConfig.BacklogTimeout,
+	}))
+	r.Use(trackRequestMetric(mc))
+	r.Use(middleware.Heartbeat(cfg.HeartBeatPath))
 
-	if err := json.Unmarshal(data, metricReq); err != nil {
-		http.Error(w, "Invalid JSON format", http.StatusBadRequest)
-		return false
-	}
+	r.Use(httprate.Limit(cfg.RateLimitSizePerMinute, time.Minute,
+		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
+			response := MetricResponse{
+				Status: http.StatusTooManyRequests,
+				Reason: "Rate-limited. Hold on 😡. Don't bring me down.",
+			}
+			raw, err := response.ToJSON()
+			if err != nil {
+				http.Error(w, fmt.Sprintf("failed to marshal rate limit response: %v", err), http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusTooManyRequests)
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Content-Length", strconv.FormatInt(int64(len(raw)), 10))
+			w.Write(raw)
+		}),
+	))
 
-	return true
+	// TODO:  Work on metric removal with access time idea
+	r.Handle(cfg.MetricExportPath,
+		promhttp.HandlerFor(reg, promhttp.HandlerOpts{}))
+	r.Post("/push", PushStatRestMetric(mc, reg))
+	r.Post("/init", RegisterRestMetric(mc, reg))
+
+	return r
+}
+
+func corsMiddleware(cfg TallyPortConfig) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			for _, header := range cfg.CorsConfig.Headers {
+				w.Header().Set(header.Key, header.Value)
+			}
+
+			if r.Method == "OPTIONS" {
+				w.WriteHeader(http.StatusOK)
+				return
+			}
+
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func trackRequestMetric(mc *CollectorRegistry) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+			start := time.Now()
+			method := req.Method
+			endpoint := req.URL.Path
+			ww := middleware.NewWrapResponseWriter(res, req.ProtoMajor)
+			next.ServeHTTP(ww, req)
+			status := fmt.Sprintf("%d", ww.Status())
+
+			mc.counters.Lock()
+			counter := mc.counters.cache[Metric{key: "__tallyport__"}]
+			counter.WithLabelValues(method, endpoint, status).Inc()
+			mc.counters.Unlock()
+
+			mc.histograms.Lock()
+			histogram := mc.histograms.cache[Metric{key: "__tallyport__latency__"}]
+			histogram.WithLabelValues(method, endpoint).Observe(time.Since(start).Seconds())
+			mc.histograms.Unlock()
+
+		})
+	}
 }
 
 func fatalLog(err error, logger zerolog.Logger) {
