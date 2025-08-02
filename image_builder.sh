@@ -229,7 +229,7 @@ log_message "Building Prometheus image: ${PROMETHEUS_IMAGE}:${VERSION_TAG}"
 if [ "$DRY_RUN" = true ]; then
     log_message "DRY-RUN: Would build ${PROMETHEUS_IMAGE}:${VERSION_TAG}"
 else
-    docker buildx build -t "${PROMETHEUS_IMAGE}:${VERSION_TAG}" --no-cache \
+    docker buildx build -t "${PROMETHEUS_IMAGE}:${VERSION_TAG}"\
     --build-arg PROM_PID=prometheus \
     --build-arg PROM_SETUP_DIR=/etc/prometheus \
     --build-arg PROM_PORT=9091 \
