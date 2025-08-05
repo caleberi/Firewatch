@@ -17,8 +17,8 @@ fi
 
 
 if [ -f "$PROMETHEUS_WEB_CONFIG_FILE" ]; then
-    echo "Processing web config: $PROMETHEUS_WEB_CONFIG_FILE with prom-builder.py..."
-    $PYTHON_EXECUTABLE prom-builder.py "$PROMETHEUS_WEB_CONFIG_FILE" "-"
+    echo "Processing web config: $PROMETHEUS_WEB_CONFIG_FILE with yaml-preprocessor.py..."
+    $PYTHON_EXECUTABLE yaml-preprocessor.py "$PROMETHEUS_WEB_CONFIG_FILE" "-"
     if [ $? -eq 0 ]; then
         echo "Successfully processed $PROMETHEUS_WEB_CONFIG_FILE"
     else
@@ -50,10 +50,10 @@ fi
 if [ -d "$SCRAPE_DIR" ] && ls "$SCRAPE_DIR"/*.yml >/dev/null 2>&1; then
     # Loop through all .yml files in SCRAPE_DIR
     for yaml_file in "$SCRAPE_DIR"/*.yml; do
-        # Run prom-builder.py on each YAML file to replace environment variable placeholders
+        # Run yaml-preprocessor.py on each YAML file to replace environment variable placeholders
         # Example: Resolves placeholders like ${TARGET_HOST} in prometheus.yml
-        echo "Processing $yaml_file with prom-builder.py..."
-        $PYTHON_EXECUTABLE prom-builder.py "$yaml_file" "-"
+        echo "Processing $yaml_file with yaml-preprocessor.py..."
+        $PYTHON_EXECUTABLE yaml-preprocessor.py "$yaml_file" "-"
         if [ $? -eq 0 ]; then
             echo "Successfully processed $yaml_file"
         else
@@ -78,11 +78,11 @@ echo ">> $PROMETHEUS_TOOL_EXECUTABLE_PROGRAM"
 echo "Running lint checks on configuration files"
 
 if [ -f "$PROMETHEUS_CONFIG_FILE" ]; then
-    echo "Processing $PROMETHEUS_CONFIG_FILE with prom-builder.py..."
+    echo "Processing $PROMETHEUS_CONFIG_FILE with yaml-preprocessor.py..."
     if [ -f "$POPULATION_FILE" ]; then
-        $PYTHON_EXECUTABLE prom-builder.py "$PROMETHEUS_CONFIG_FILE" "$POPULATION_FILE"
+        $PYTHON_EXECUTABLE yaml-preprocessor.py "$PROMETHEUS_CONFIG_FILE" "$POPULATION_FILE"
     else 
-       $PYTHON_EXECUTABLE prom-builder.py "$PROMETHEUS_CONFIG_FILE" "-"
+       $PYTHON_EXECUTABLE yaml-preprocessor.py "$PROMETHEUS_CONFIG_FILE" "-"
     fi
     if [ $? -eq 0 ]; then
         echo "Successfully processed $PROMETHEUS_CONFIG_FILE"
@@ -102,7 +102,8 @@ else
 fi
 
 if [[ -x "$PROMETHEUS_ALERTMANAGER_EXECUTABLE_PROGRAM" && -f "$ALERT_CONFIG_FILE" ]]; then
-    nohup "$PROMETHEUS_ALERTMANAGER_EXECUTABLE_PROGRAM" --config.file="$ALERT_CONFIG_FILE" &
+    $PYTHON_EXECUTABLE yaml-preprocessor.py "$ALERT_CONFIG_FILE" "-"
+    nohup "$PROMETHEUS_ALERTMANAGER_EXECUTABLE_PROGRAM" --config.file="$ALERT_CONFIG_FILE" --enable-feature="utf8-strict-mode" &
 fi
 
 echo "Starting Prometheus With $PROMETHEUS_CONFIG_FILE..."

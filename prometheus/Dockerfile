@@ -8,7 +8,7 @@ FROM ${BASE_OS_IMAGE}:${BASE_OS_VERSION} AS builder
 RUN apk add --no-cache curl python3 py3-pip tar
 # Copy requirements.txt to the working directory
 COPY requirements.txt /requirements.txt
-COPY prom-builder.py  /prom-builder.py 
+COPY yaml-preprocessor.py  /yaml-preprocessor.py 
 # Create a virtual environment and install dependencies
 RUN python3 -m venv /venv && \
     /venv/bin/pip install --no-cache-dir -r requirements.txt && \
@@ -66,7 +66,7 @@ COPY --from=builder /usr/bin/alertmanager /usr/bin/alertmanager
 
 # Copy Python virtual environment from builder stage
 COPY --from=builder /venv /venv
-COPY --from=builder prom-builder.py prom-builder.py
+COPY --from=builder yaml-preprocessor.py yaml-preprocessor.py
 
 # Copy configuration files and directories, setting ownership
 COPY ./prometheus.yml ${PROMETHEUS_CONFIG_FILE} 
