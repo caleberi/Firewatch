@@ -4,8 +4,10 @@ services:
     container_name: prometheus
     ports:
       - "9091:9091"
+      - "9093:9093"
     expose:
       - "9091"
+      - "9093"
     volumes:
       - prometheus_data:/etc/prometheus
     env_file:
