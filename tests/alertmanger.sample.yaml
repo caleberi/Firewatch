@@ -1,0 +1,110 @@
+global:
+  resolve_timeout: 5m
+  slack_api_url: https://hooks.slack.com/services/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c
+  smtp_auth_password: test1234
+  smtp_auth_username: alertmanager
+  smtp_from: alertmanager@example.com
+  smtp_hello: example.com
+  smtp_smarthost: smtp.example.com:587
+inhibit_rules:
+  - equal:
+      - alertname
+    source_matchers:
+      - severity="critical"
+    target_matchers:
+      - severity="warning"
+receivers:
+  - name: slack-receiver
+    slack_configs:
+      - actions:
+          - text: Downtime Alert Notification from Firewatch
+            type: button
+            url: "{{ .CommonAnnotations.ack_url }}"
+        channel: "#alerts"
+        color: '{{ if eq .Status "firing" }}#FF0000{{ else }}#00FF00{{ end }}'
+        send_resolved: true
+        text: "{{ range .Alerts }}{{ .Annotations.description }}
+
+          {{ end }}"
+        title: "{{ .CommonAnnotations.summary }}"
+  - email_configs:
+      - send_resolved: true
+        to: admin12@cudium.com
+    name: default-receiver
+  - email_configs:
+      - send_resolved: true
+        to: admin12@cudium.com
+    name: office-hours-team
+  - email_configs:
+      - send_resolved: true
+        to: admin12@cudium.com
+    name: on-call-team
+route:
+  group_by:
+    - alertname
+    - severity
+  group_interval: 3m
+  group_wait: 1m
+  receiver: default-receiver
+  repeat_interval: 2h
+  routes:
+    - active_time_intervals:
+        - office-hours
+      matchers:
+        - severity="warning"
+      mute_time_intervals:
+        - holidays
+      receiver: office-hours-team
+    - active_time_intervals:
+        - after-hours
+        - weekends
+        - holidays
+      matchers:
+        - severity=~"critical|warning"
+      receiver: on-call-team
+templates:
+  - /etc/prometheus/templates/*.tmpl
+time_intervals:
+  - name: office-hours
+    time_intervals:
+      - location: Africa/Lagos
+        times:
+          - end_time: "17:00"
+            start_time: 09:00
+        weekdays:
+          - monday
+          - tuesday
+          - wednesday
+          - thursday
+          - friday
+  - name: after-hours
+    time_intervals:
+      - location: Africa/Lagos
+        times:
+          - end_time: "23:59"
+            start_time: "17:30"
+        weekdays:
+          - monday
+          - tuesday
+          - wednesday
+          - thursday
+          - friday
+  - name: weekends
+    time_intervals:
+      - location: Africa/Lagos
+        times:
+          - end_time: "23:59"
+            start_time: 00:00
+        weekdays:
+          - saturday
+          - sunday
+  - name: holidays
+    time_intervals:
+      - days_of_month:
+          - "1"
+          - "25"
+        months:
+          - "1"
+          - "12"
+        years:
+          - 2023:2025
