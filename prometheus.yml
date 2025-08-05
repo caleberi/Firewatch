@@ -26,6 +26,10 @@ scrape_config_files:
 alerting:
   alert_relabel_configs: # Configuration for relabeling alerts before sending to Alertmanager (empty here)
   alertmanagers: # List of Alertmanager instances for sending alerts (empty here)
+    - static_configs:
+        - targets: ["localhost:${ALERT_MANAGER_PORT}"] # Target host and port for the Alertmanager
+          labels:
+            application: alert_manager # e.g., to identify the app
 
 scrape_configs:
   - job_name: "prometheus" # Scrape job for Prometheus itself (self-monitoring)
