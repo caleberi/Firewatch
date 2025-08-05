@@ -1,0 +1,32 @@
+groups:
+  - name: downtime-alerts
+    labels:
+      severity: critical
+      alertname: downtime
+      teams:
+        - on-call-team
+        - office-hours-team
+    rules:
+      - alert: Warn:ServiceDowntime
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service is down"
+          description: "The service {{ $labels.instance }} for {{ $labels.environment }} is down for more than 5 minutes."
+          runbook_url: "https://example.com/runbooks/service-downtime"
+          ack_url: "https://example.com/acknowledge/service-downtime"
+          downtime_url: "https://example.com/downtime/service-downtime"
+
+      - alert: Critical:ServiceDowntime
+        expr: up == 0
+        for: 10m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "The service {{ $labels.instance }} for {{ $labels.environment }} is down for more than 10 minutes."
+          runbook_url: "https://example.com/runbooks/service-downtime"
+          ack_url: "https://example.com/acknowledge/service-downtime"
+          downtime_url: "https://example.com/downtime/service-downtime"

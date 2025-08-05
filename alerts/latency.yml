@@ -1,0 +1,14 @@
+groups:
+  - name: latency-alerts
+    rules:
+      - alert: Latency
+        expr: http_request_duration_seconds_sum / http_request_duration_seconds_count > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Service is experiencing high latency"
+          description: "The service {{ $labels.instance }} for {{ $labels.environment }} is experiencing high latency."
+          runbook_url: "https://example.com/runbooks/service-latency"
+          ack_url: "https://example.com/acknowledge/service-maintenance"
+          downtime_url: "https://example.com/downtime/service-maintenance"
