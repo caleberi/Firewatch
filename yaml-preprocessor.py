@@ -105,12 +105,12 @@ def main() -> None:
     """Process YAML files by merging configurations and resolving environment variables."""
     if len(sys.argv) < 2:
         print("Error: YAML file and population file must be specified." \
-        " Usage: python resolve_env_vars.py <output_yaml_file> <population_json_file>")
+        " Usage: python yaml-preprocessor.py <output_yaml_file> <population_json_file>")
         sys.exit(1)
+    env_path = ''.join([getcwd(),"/.env"])
+    if path.exists(env_path):
+        load_dotenv(env_path)
 
-    if path.exists(getcwd().join(".env")):
-        load_dotenv(getcwd().join(".env"))
-        
     yaml_file = sys.argv[1] 
     population_path = sys.argv[2]
     env_vars = dict(environ)
