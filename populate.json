@@ -2,7 +2,7 @@
     {
         "name":"alertmanager_config",
         "description": "An alertmanager_config section specifies Alertmanager instances the Prometheus server sends alerts to. It also provides parameters to configure how to communicate with these Alertmanagers",
-        "skip_merge": false,
+        "skip_merge": true,
         "path":"/etc/prometheus/alerts/**.yml"
     },
     {
