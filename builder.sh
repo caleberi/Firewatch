@@ -62,10 +62,14 @@ do_parse_input() {
     done
 }
 
+
 source ./scripts/prerequisites.sh
+source ./scripts/build_loki.sh
 source ./scripts/build_grafana.sh
 source ./scripts/build_prometheus.sh
 source ./scripts/build_tallyport.sh
+source ./scripts/build_promtail.sh
+
 
 do_parse_input "$@"
 do_validate_version "$VERSION_NUMBER"
@@ -73,9 +77,12 @@ trap do_logfile_cleanup EXIT INT TERM
 do_check_docker_buildx
 
 # Image configurations
+LOKI_IMAGE="${DOCKER_ACCOUNT}/loki"
 GRAFANA_IMAGE="${DOCKER_ACCOUNT}/grafana"
 TALLYPORT_IMAGE="${DOCKER_ACCOUNT}/tallyport"
 PROMETHEUS_IMAGE="${DOCKER_ACCOUNT}/prometheus"
+PROMTAIL_IMAGE="${DOCKER_ACCOUNT}/promtail"
+
 
 # Validate build context and check existing images based on IMAGE_NAME
 case $IMAGE_NAME in
@@ -91,13 +98,25 @@ case $IMAGE_NAME in
         do_check_build_context tallyport
         do_check_docker_image "$TALLYPORT_IMAGE"
         ;;
+    loki|LOKI)
+        do_check_build_context loki
+        do_check_docker_image "$LOKI_IMAGE"
+        ;;
+    promtail|PROMTAIL)
+        do_check_build_context promtail
+        do_check_docker_image "$PROMTAIL_IMAGE"
+        ;;
     all|ALL)
         do_check_build_context grafana
         do_check_build_context prometheus
         do_check_build_context tallyport
+        do_check_build_context loki
+        do_check_build_context promtail
         do_check_docker_image "$GRAFANA_IMAGE"
         do_check_docker_image "$TALLYPORT_IMAGE"
         do_check_docker_image "$PROMETHEUS_IMAGE"
+        do_check_docker_image "$LOKI_IMAGE"
+         do_check_docker_image "$PROMTAIL_IMAGE"
         ;;
     *) log_fatal "Error: Invalid image name '$IMAGE_NAME'. Must be 'grafana', 'prometheus', 'tallyport', or 'all'";;
 esac
@@ -113,10 +132,18 @@ case $IMAGE_NAME in
     tallyport|TALLYPORT)
         build_tallyport
         ;;
+    loki|LOKI)
+        build_loki
+        ;;
+    promtail|PROMTAIL)
+        build_promtail
+        ;;
     all|ALL)
         build_grafana
         build_prometheus
         build_tallyport
+        build_loki
+        build_promtail
         ;;
 esac
 
@@ -147,6 +174,14 @@ if [ "$TRIGGER_IMAGE_PUSH" != true ]; then
             push_image "${TALLYPORT_IMAGE}:${VERSION_NUMBER}"
             push_image "${TALLYPORT_IMAGE}:latest"
             ;;
+        loki|LOKI)
+            push_image "${LOKI_IMAGE}:${VERSION_NUMBER}"
+            push_image "${LOKI_IMAGE}:latest"
+            ;;
+        promtail|PROMTAIL)
+            push_image "${PROMTAIL_IMAGE}:${VERSION_NUMBER}"
+            push_image "${PROMTAIL_IMAGE}:latest"
+            ;;
         all|ALL)
             push_image "${GRAFANA_IMAGE}:${VERSION_NUMBER}"
             push_image "${GRAFANA_IMAGE}:latest"
@@ -154,6 +189,10 @@ if [ "$TRIGGER_IMAGE_PUSH" != true ]; then
             push_image "${PROMETHEUS_IMAGE}:latest"
             push_image "${TALLYPORT_IMAGE}:${VERSION_NUMBER}"
             push_image "${TALLYPORT_IMAGE}:latest"
+            push_image "${PROMTAIL_IMAGE}:${VERSION_NUMBER}"
+            push_image "${PROMTAIL_IMAGE}:latest"
+            push_image "${LOKI_IMAGE}:${VERSION_NUMBER}"
+            push_image "${LOKI_IMAGE}:latest"
             ;;
     esac
 fi
@@ -162,23 +201,35 @@ fi
 log_message "Successfully built, tagged, and pushed images:"
 case $IMAGE_NAME in
     grafana|GRAFANA)
-        log_message "*) ${GRAFANA_IMAGE}:${VERSION_TAG}"
+        log_message "*) ${GRAFANA_IMAGE}:${VERSION_NUMBER}"
         log_message "*) ${GRAFANA_IMAGE}:latest"
         ;;
     prometheus|PROMETHEUS)
-        log_message "*) ${PROMETHEUS_IMAGE}:${VERSION_TAG}"
+        log_message "*) ${PROMETHEUS_IMAGE}:${VERSION_NUMBER}"
         log_message "*) ${PROMETHEUS_IMAGE}:latest"
         ;;
     tallyport|TALLYPORT)
-        log_message "*) ${TALLYPORT_IMAGE}:${VERSION_TAG}"
+        log_message "*) ${TALLYPORT_IMAGE}:${VERSION_NUMBER}"
         log_message "*) ${TALLYPORT_IMAGE}:latest"
         ;;
+    loki|LOKI)
+        log_message "*) ${LOKI_IMAGE}:${VERSION_NUMBER}"
+        log_message "*) ${LOKI_IMAGE}:latest"
+        ;;
+    promtail|PROMTAIL)
+        log_message "*) ${PROMTAIL_IMAGE}:${VERSION_NUMBER}"
+        log_message "*) ${PROMTAIL_IMAGE}:latest"
+        ;;
     all|ALL)
-        log_message "*) ${GRAFANA_IMAGE}:${VERSION_TAG}"
+        log_message "*) ${GRAFANA_IMAGE}:${VERSION_NUMBER}"
         log_message "*) ${GRAFANA_IMAGE}:latest"
-        log_message "*) ${PROMETHEUS_IMAGE}:${VERSION_TAG}"
+        log_message "*) ${PROMETHEUS_IMAGE}:${VERSION_NUMBER}"
         log_message "*) ${PROMETHEUS_IMAGE}:latest"
-        log_message "*) ${TALLYPORT_IMAGE}:${VERSION_TAG}"
+        log_message "*) ${TALLYPORT_IMAGE}:${VERSION_NUMBER}"
         log_message "*) ${TALLYPORT_IMAGE}:latest"
+        log_message "*) ${LOKI_IMAGE}:${VERSION_NUMBER}"
+        log_message "*) ${LOKI_IMAGE}:latest"
+        log_message "*) ${PROMTAIL_IMAGE}:${VERSION_NUMBER}"
+        log_message "*) ${PROMTAIL_IMAGE}:latest"
         ;;
 esac
