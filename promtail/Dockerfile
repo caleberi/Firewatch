@@ -1,6 +1,6 @@
 FROM alpine:3.18
 
-RUN apk add --no-cache curl libc6-compat tar unzip
+RUN apk add --no-cache curl gcompat unzip
 
 RUN curl -fSL -o /tmp/promtail.zip https://github.com/grafana/loki/releases/download/v3.5.3/promtail-linux-arm64.zip \
     && unzip /tmp/promtail.zip -d /usr/bin/ \
