@@ -66,6 +66,8 @@ do_check_build_context() {
         prometheus|PROMETHEUS) validate_build_context "./prometheus" "./prometheus/Dockerfile";;
         grafana|GRAFANA) validate_build_context "./grafana" "./grafana/Dockerfile";;
         tallyport|TALLYPORT) validate_build_context "./tallyport" "./tallyport/Dockerfile";;
+        loki|LOKI) validate_build_context "./loki" "./loki/Dockerfile";;
+        promtail|PROMTAIL) validate_build_context "./promtail" "./promtail/Dockerfile";;
         *) log_fatal "Error: Unknown build context '$1'";;
     esac
 }
