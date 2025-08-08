@@ -8,10 +8,9 @@ RUN curl -fSL -o /tmp/promtail.zip https://github.com/grafana/loki/releases/down
     && chmod a+x /usr/bin/promtail \
     && rm /tmp/promtail.zip
 
-COPY ./promtail.yml /etc/promtail/promtail.yml
 
-RUN mkdir -p /promtail
+COPY ./promtail.yml promtail.yml
 
 EXPOSE 9080
 
-CMD ["/usr/bin/promtail", "--config.file=/etc/promtail/promtail.yml"]
+CMD ["/usr/bin/promtail", "--config.file=promtail.yml"]

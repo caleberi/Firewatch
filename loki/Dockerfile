@@ -8,10 +8,9 @@ RUN curl -fSL -o /tmp/loki.zip https://github.com/grafana/loki/releases/download
     && chmod a+x /usr/bin/loki \
     && rm /tmp/loki.zip
 
-COPY ./loki.yml /etc/loki/loki.yml
 
-RUN mkdir -p /loki
+COPY loki.yml loki.yml
 
 EXPOSE 3100
 
-CMD ["/usr/bin/loki", "--config.file=/etc/loki/loki.yml"]
+CMD ["/usr/bin/loki", "--config.file=loki.yml"]
