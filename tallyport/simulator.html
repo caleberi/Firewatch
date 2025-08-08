@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Metrics Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
+            min-height: 100vh;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .mobile-container {
+            max-width: 430px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 30px;
+            overflow: hidden;
+            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+
+        .status-bar {
+            height: 44px;
+            background: rgba(0, 0, 0, 0.3);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .time {
+            color: #ffffff;
+        }
+
+        .battery-signal {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .battery {
+            width: 24px;
+            height: 12px;
+            border: 1px solid #ffffff;
+            border-radius: 2px;
+            position: relative;
+        }
+
+        .battery::after {
+            content: '';
+            position: absolute;
+            right: -3px;
+            top: 3px;
+            width: 2px;
+            height: 6px;
+            background: #ffffff;
+            border-radius: 0 1px 1px 0;
+        }
+
+        .battery-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+            border-radius: 1px;
+            width: 80%;
+        }
+
+        .signal {
+            display: flex;
+            gap: 2px;
+        }
+
+        .signal-bar {
+            width: 3px;
+            background: #ffffff;
+            border-radius: 1px;
+        }
+
+        .signal-bar:nth-child(1) { height: 4px; }
+        .signal-bar:nth-child(2) { height: 6px; }
+        .signal-bar:nth-child(3) { height: 8px; }
+        .signal-bar:nth-child(4) { height: 10px; }
+
+        .app-header {
+            padding: 20px;
+            text-align: center;
+            position: relative;
+            background: linear-gradient(135deg, rgba(120, 119, 198, 0.3) 0%, rgba(255, 75, 178, 0.3) 100%);
+        }
+
+        .app-title {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #7877c6, #ff4bb2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .app-subtitle {
+            font-size: 14px;
+            opacity: 0.7;
+            margin-bottom: 15px;
+        }
+
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 20px;
+            padding: 6px 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            background: #00ff88;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .controls {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            flex: 1;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: rgba(255, 255, 255, 0.7);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            color: #ffffff;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #7877c6;
+            background: rgba(255, 255, 255, 0.12);
+            box-shadow: 0 0 0 3px rgba(120, 119, 198, 0.3);
+        }
+
+        .control-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #7877c6, #5854a8);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #00ff88, #00cc6a);
+            color: #000;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff4757, #ff3838);
+            color: white;
+        }
+
+        .btn:active {
+            transform: scale(0.98);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .metrics-section {
+            padding: 0 20px 20px;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .kpi-cards {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 25px;
+        }
+
+        .kpi-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent-color, linear-gradient(90deg, #7877c6, #ff4bb2));
+        }
+
+        .kpi-value {
+            font-size: 24px;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 4px;
+            font-feature-settings: 'tnum';
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            opacity: 0.7;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .kpi-trend {
+            position: absolute;
+            top: 16px;
+            right: 16px;
+            font-size: 12px;
+            color: var(--trend-color, #00ff88);
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .chart-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .chart-period {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.6);
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 200px;
+            margin-bottom: 15px;
+        }
+
+        .mini-chart-wrapper {
+            position: relative;
+            height: 120px;
+        }
+
+        .activity-log {
+            max-height: 150px;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 12px;
+        }
+
+        .log-entry {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 0;
+            font-size: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-time {
+            color: rgba(255, 255, 255, 0.5);
+            font-family: 'SF Mono', Monaco, monospace;
+            min-width: 60px;
+        }
+
+        .log-message {
+            flex: 1;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .log-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .log-success { background: #00ff88; }
+        .log-error { background: #ff4757; }
+        .log-info { background: #3742fa; }
+
+        .bottom-nav {
+            height: 80px;
+            background: rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(20px);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-item.active {
+            color: #7877c6;
+        }
+
+        .nav-icon {
+            width: 24px;
+            height: 24px;
+            background: currentColor;
+            mask-repeat: no-repeat;
+            mask-position: center;
+            mask-size: contain;
+        }
+
+        .fade-in {
+            animation: fadeInUp 0.6s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Custom scrollbar */
+        .activity-log::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .activity-log::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        .activity-log::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+
+        .loading-shimmer {
+            background: linear-gradient(90deg, 
+                rgba(255, 255, 255, 0.05) 25%, 
+                rgba(255, 255, 255, 0.15) 50%, 
+                rgba(255, 255, 255, 0.05) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <div class="time" id="currentTime">9:41</div>
+            <div class="battery-signal">
+                <div class="signal">
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                    <div class="signal-bar"></div>
+                </div>
+                <div class="battery">
+                    <div class="battery-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Header -->
+        <div class="app-header">
+            <div class="app-title">📱 Metrics Hub</div>
+            <div class="app-subtitle">Real-time Mobile Analytics</div>
+            <div class="connection-status" id="connectionStatus">
+                <div class="status-dot"></div>
+                <span>Connected</span>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="serverUrl">Server</label>
+                    <input type="text" id="serverUrl" value="localhost:8080">
+                </div>
+                <div class="input-group">
+                    <label for="interval">Interval</label>
+                    <input type="number" id="interval" value="2000" min="500" max="5000">
+                </div>
+            </div>
+            <div class="input-row">
+                <div class="input-group">
+                    <label for="appName">App Name</label>
+                    <input type="text" id="appName" value="MobileApp">
+                </div>
+                <div class="input-group">
+                    <label for="version">Version</label>
+                    <input type="text" id="version" value="1.0.0">
+                </div>
+            </div>
+            <div class="control-buttons">
+                <button class="btn btn-primary" onclick="initializeMetrics()">Init</button>
+                <button class="btn btn-success" id="startBtn" onclick="startSimulation()">Start</button>
+                <button class="btn btn-danger" id="stopBtn" onclick="stopSimulation()" disabled>Stop</button>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="metrics-section">
+            <div class="section-title">
+                📊 Key Metrics
+            </div>
+            <div class="kpi-cards">
+                <div class="kpi-card" style="--accent-color: linear-gradient(90deg, #00ff88, #00cc6a);">
+                    <div class="kpi-value" id="activeUsers">0</div>
+                    <div class="kpi-label">Active Users</div>
+                    <div class="kpi-trend" id="usersTrend">+0%</div>
+                </div>
+                <div class="kpi-card" style="--accent-color: linear-gradient(90deg, #7877c6, #5854a8);">
+                    <div class="kpi-value" id="appLaunches">0</div>
+                    <div class="kpi-label">App Launches</div>
+                    <div class="kpi-trend" id="launchesTrend">+0</div>
+                </div>
+                <div class="kpi-card" style="--accent-color: linear-gradient(90deg, #ff4bb2, #ff3838);">
+                    <div class="kpi-value" id="apiCalls">0</div>
+                    <div class="kpi-label">API Calls</div>
+                    <div class="kpi-trend" id="apiTrend">+0</div>
+                </div>
+                <div class="kpi-card" style="--accent-color: linear-gradient(90deg, #ffa726, #ff7043);">
+                    <div class="kpi-value" id="responseTime">0ms</div>
+                    <div class="kpi-label">Avg Response</div>
+                    <div class="kpi-trend" id="responseTrend">-</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chart -->
+        <div class="metrics-section">
+            <div class="chart-container fade-in">
+                <div class="chart-header">
+                    <div class="chart-title">📈 Active Users Timeline</div>
+                    <div class="chart-period">Last 30 points</div>
+                </div>
+                <div class="chart-wrapper">
+                    <canvas id="mainChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mini Charts -->
+        <div class="metrics-section">
+            <div class="chart-container fade-in">
+                <div class="chart-header">
+                    <div class="chart-title">⚡ Performance Metrics</div>
+                    <div class="chart-period">Real-time</div>
+                </div>
+                <div class="mini-chart-wrapper">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="metrics-section">
+            <div class="section-title">
+                📝 Activity Log
+            </div>
+            <div class="activity-log" id="activityLog">
+                <div class="log-entry">
+                    <div class="log-icon log-info"></div>
+                    <div class="log-time">09:41</div>
+                    <div class="log-message">Metrics Hub initialized</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <div class="bottom-nav">
+            <div class="nav-item active">
+                <div class="nav-icon" style="mask-image: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 00-2-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z\" /></svg>')"></div>
+                <span>Dashboard</span>
+            </div>
+            <div class="nav-item">
+                <div class="nav-icon" style="mask-image: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M13 10V3L4 14h7v7l9-11h-7z\" /></svg>')"></div>
+                <span>Performance</span>
+            </div>
+            <div class="nav-item">
+                <div class="nav-icon" style="mask-image: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z\" /></svg>')"></div>
+                <span>Alerts</span>
+            </div>
+            <div class="nav-item">
+                <div class="nav-icon" style="mask-image: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" fill=\"none\" viewBox=\"0 0 24 24\" stroke=\"currentColor\"><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z\" /><path stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"2\" d=\"M15 12a3 3 0 11-6 0 3 3 0 016 0z\" /></svg>')"></div>
+                <span>Settings</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let simulationRunning = false;
+        let simulationInterval;
+        let mainChart, performanceChart;
+        let userDataHistory = [];
+        let performanceDataHistory = [];
+        let previousMetrics = { activeUsers: 0, appLaunches: 0, apiCalls: 0, responseTime: 0 };
+        let currentMetrics = { activeUsers: 0, appLaunches: 0, apiCalls: 0, responseTime: 0 };
+
+        // Initialize time display
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = 
+                now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+        }
+        updateTime();
+        setInterval(updateTime, 1000);
+
+        // Initialize charts
+        function initializeCharts() {
+            if (typeof Chart === 'undefined') {
+                console.error('Chart.js is not loaded. Please ensure the Chart.js library is available.');
+                logActivity('❌ Chart.js failed to load. Try using a local copy.', 'error');
+                return;
+            }
+
+            Chart.defaults.color = 'rgba(255, 255, 255, 0.8)';
+            Chart.defaults.borderColor = 'rgba(255, 255, 255, 0.1)';
+            Chart.defaults.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+
+            const mainCtx = document.getElementById('mainChart').getContext('2d');
+            mainChart = new Chart(mainCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Active Users',
+                        data: [],
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#00ff88',
+                        pointBorderColor: '#ffffff',
+                        pointBorderWidth: 2,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { maxTicksLimit: 6 }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            beginAtZero: true
+                        }
+                    },
+                    elements: {
+                        point: { hoverBackgroundColor: '#00ff88' }
+                    }
+                }
+            });
+
+            const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+            performanceChart = new Chart(performanceCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['API Success', 'API Errors', 'Timeouts'],
+                    datasets: [{
+                        data: [85, 10, 5],
+                        backgroundColor: [
+                            'rgba(0, 255, 136, 0.8)',
+                            'rgba(255, 71, 87, 0.8)',
+                            'rgba(255, 159, 64, 0.8)'
+                        ],
+                        borderColor: [
+                            '#00ff88',
+                            '#ff4757',
+                            '#ff9f40'
+                        ],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: { size: 11 },
+                                usePointStyle: true
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function logActivity(message, type = 'info') {
+            const logContainer = document.getElementById('activityLog');
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry fade-in';
+            
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+            
+            logEntry.innerHTML = `
+                <div class="log-icon log-${type}"></div>
+                <div class="log-time">${time}</div>
+                <div class="log-message">${message}</div>
+            `;
+            
+            logContainer.insertBefore(logEntry, logContainer.firstChild);
+            
+            // Keep only last 20 entries
+            while (logContainer.children.length > 20) {
+                logContainer.removeChild(logContainer.lastChild);
+            }
+        }
+
+        async function makeRequest(endpoint, data) {
+            const serverUrl = document.getElementById('serverUrl').value;
+            try {
+                const response = await fetch(`http://${serverUrl}${endpoint}`, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const contentType = response.headers.get('content-type');
+                if (contentType && contentType.includes('application/json')) {
+                    return await response.json();
+                } else {
+                    return { message: await response.text() };
+                }
+            } catch (error) {
+                if (error.message.includes('CORS')) {
+                    updateConnectionStatus(false);
+                    throw new Error('CORS Error: Add CORS headers to server');
+                }
+                updateConnectionStatus(false);
+                throw new Error(`Request failed: ${error.message}`);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            if (connected) {
+                status.innerHTML = '<div class="status-dot"></div><span>Connected</span>';
+                status.style.background = 'rgba(0, 255, 136, 0.1)';
+                status.style.borderColor = 'rgba(0, 255, 136, 0.3)';
+            } else {
+                status.innerHTML = '<div class="status-dot" style="background: #ff4757;"></div><span>Disconnected</span>';
+                status.style.background = 'rgba(255, 71, 87, 0.1)';
+                status.style.borderColor = 'rgba(255, 71, 87, 0.3)';
+            }
+        }
+
+        async function initializeMetrics() {
+            const appName = document.getElementById('appName').value;
+            const version = document.getElementById('version').value;
+
+            logActivity('Initializing metrics...', 'info');
+
+            const metricsToInit = [
+                {
+                    type: 'gauge',
+                    name: 'mobile_active_users',
+                    description: 'Number of currently active users',
+                    labels: ['app_name', 'version', 'platform']
+                },
+                {
+                    type: 'counter',
+                    name: 'mobile_app_launches_total',
+                    description: 'Total number of app launches',
+                    labels: ['app_name', 'version', 'platform']
+                },
+                {
+                    type: 'counter',
+                    name: 'mobile_api_calls_total',
+                    description: 'Total number of API calls',
+                    labels: ['app_name', 'version', 'endpoint', 'platform']
+                },
+                {
+                    type: 'counter',
+                    name: 'mobile_crashes_total',
+                    description: 'Total number of app crashes',
+                    labels: ['app_name', 'version', 'platform', 'crash_type']
+                },
+                {
+                    type: 'histogram',
+                    name: 'mobile_api_response_time',
+                    description: 'API response time in seconds',
+                    labels: ['app_name', 'version', 'endpoint', 'platform'],
+                    histogram: {
+                        buckets: [0.1, 0.25, 0.5, 1, 2.5, 5, 10]
+                    }
+                },
+                {
+                    type: 'counter',
+                    name: 'mobile_screen_views_total',
+                    description: 'Total number of screen views',
+                    labels: ['app_name', 'version', 'screen_name', 'platform']
+                }
+            ];
+
+            let successCount = 0;
+            for (const metric of metricsToInit) {
+                try {
+                    await makeRequest('/init', metric);
+                    successCount++;
+                } catch (error) {
+                    if (error.message.includes('already exists')) {
+                        successCount++;
+                    } else {
+                        logActivity(`Failed to init ${metric.name}`, 'error');
+                    }
+                }
+            }
+
+            if (successCount === metricsToInit.length) {
+                logActivity('✓ All metrics initialized', 'success');
+                updateConnectionStatus(true);
+            } else {
+                logActivity(`⚠ ${successCount}/${metricsToInit.length} metrics ready`, 'info');
+            }
+        }
+
+        function getRandomElement(array) {
+            return array[Math.floor(Math.random() * array.length)];
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getRandomFloat(min, max) {
+            return Math.random() * (max - min) + min;
+        }
+
+        async function simulateMetrics() {
+            const appName = document.getElementById('appName').value;
+            const version = document.getElementById('version').value;
+            const platform = getRandomElement(['ios', 'android']);
+            const screens = ['home', 'profile', 'settings', 'shop', 'cart'];
+            const apiEndpoints = ['/api/user', '/api/products', '/api/orders', '/api/auth'];
+
+            try {
+                // Store previous values for trend calculation
+                previousMetrics = { ...currentMetrics };
+
+                // Simulate active users (fluctuating)
+                const userChange = getRandomInt(-3, 8);
+                currentMetrics.activeUsers = Math.max(0, currentMetrics.activeUsers + userChange);
+                await makeRequest('/push', {
+                    type: 'gauge',
+                    name: 'mobile_active_users',
+                    labels: [appName, version, platform],
+                    gauge: { value: currentMetrics.activeUsers }
+                });
+
+                // Simulate app launches
+                if (Math.random() < 0.4) {
+                    currentMetrics.appLaunches++;
+                    await makeRequest('/push', {
+                        type: 'counter',
+                        name: 'mobile_app_launches_total',
+                        labels: [appName, version, platform]
+                    });
+                }
+
+                // Simulate API calls and response times
+                if (Math.random() < 0.8) {
+                    const endpoint = getRandomElement(apiEndpoints);
+                    currentMetrics.apiCalls++;
+                    await makeRequest('/push', {
+                        type: 'counter',
+                        name: 'mobile_api_calls_total',
+                        labels: [appName, version, endpoint, platform]
+                    });
+
+                    // Response time
+                    const responseTime = getRandomFloat(0.05, 2.0);
+                    currentMetrics.responseTime = Math.round(responseTime * 1000);
+                    await makeRequest('/push', {
+                        type: 'histogram',
+                        name: 'mobile_api_response_time',
+                        labels: [appName, version, endpoint, platform],
+                        histogram: { observed_value: responseTime }
+                    });
+                }
+
+                // Simulate crashes (rare)
+                if (Math.random() < 0.03) {
+                    const crashType = getRandomElement(['OutOfMemory', 'NullPointer', 'NetworkTimeout']);
+                    await makeRequest('/push', {
+                        type: 'counter',
+                        name: 'mobile_crashes_total',
+                        labels: [appName, version, platform, crashType]
+                    });
+                    logActivity(`💥 Crash detected: ${crashType}`, 'error');
+                }
+
+                // Simulate screen views
+                if (Math.random() < 0.6) {
+                    const screen = getRandomElement(screens);
+                    await makeRequest('/push', {
+                        type: 'counter',
+                        name: 'mobile_screen_views_total',
+                        labels: [appName, version, screen, platform]
+                    });
+                }
+
+                updateUI();
+                updateCharts();
+                updateConnectionStatus(true);
+
+            } catch (error) {
+                logActivity(`Network error: ${error.message}`, 'error');
+                updateConnectionStatus(false);
+            }
+        }
+
+        function updateUI() {
+            // Update KPI values
+            document.getElementById('activeUsers').textContent = currentMetrics.activeUsers;
+            document.getElementById('appLaunches').textContent = currentMetrics.appLaunches;
+            document.getElementById('apiCalls').textContent = currentMetrics.apiCalls;
+            document.getElementById('responseTime').textContent = `${currentMetrics.responseTime}ms`;
+
+            // Update trends
+            const usersTrend = currentMetrics.activeUsers - previousMetrics.activeUsers;
+            const launchesTrend = currentMetrics.appLaunches - previousMetrics.appLaunches;
+            const apiTrend = currentMetrics.apiCalls - previousMetrics.apiCalls;
+
+            document.getElementById('usersTrend').textContent = 
+                usersTrend > 0 ? `+${usersTrend}` : usersTrend === 0 ? '0' : `${usersTrend}`;
+            document.getElementById('launchesTrend').textContent = 
+                launchesTrend > 0 ? `+${launchesTrend}` : `${launchesTrend}`;
+            document.getElementById('apiTrend').textContent = 
+                apiTrend > 0 ? `+${apiTrend}` : `${apiTrend}`;
+
+            // Set trend colors
+            document.getElementById('usersTrend').style.color = 
+                usersTrend > 0 ? '#00ff88' : usersTrend < 0 ? '#ff4757' : 'rgba(255,255,255,0.6)';
+            
+            // Response time trend (lower is better)
+            const responseTimeDiff = currentMetrics.responseTime - previousMetrics.responseTime;
+            document.getElementById('responseTrend').textContent = 
+                responseTimeDiff > 0 ? `+${responseTimeDiff}ms` : 
+                responseTimeDiff < 0 ? `${responseTimeDiff}ms` : '0ms';
+            document.getElementById('responseTrend').style.color = 
+                responseTimeDiff < 0 ? '#00ff88' : responseTimeDiff > 0 ? '#ff4757' : 'rgba(255,255,255,0.6)';
+        }
+
+        function updateCharts() {
+            if (!mainChart || !performanceChart) {
+                console.warn('Charts not initialized, skipping update');
+                return;
+            }
+
+            const now = new Date();
+            const timeLabel = now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+
+            // Update main chart (Active Users)
+            userDataHistory.push({
+                time: timeLabel,
+                users: currentMetrics.activeUsers
+            });
+
+            if (userDataHistory.length > 30) {
+                userDataHistory.shift();
+            }
+
+            mainChart.data.labels = userDataHistory.map(d => d.time);
+            mainChart.data.datasets[0].data = userDataHistory.map(d => d.users);
+            mainChart.update('none');
+
+            // Update performance chart (simulate API success rates)
+            const successRate = Math.max(75, 100 - Math.random() * 15);
+            const errorRate = Math.max(0, Math.random() * 10);
+            const timeoutRate = Math.max(0, 100 - successRate - errorRate);
+
+            performanceChart.data.datasets[0].data = [successRate, errorRate, timeoutRate];
+            performanceChart.update('none');
+        }
+
+        function startSimulation() {
+            if (simulationRunning) return;
+
+            const interval = parseInt(document.getElementById('interval').value);
+            simulationRunning = true;
+            
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+
+            simulationInterval = setInterval(simulateMetrics, interval);
+            logActivity('🚀 Simulation started', 'success');
+        }
+
+        function stopSimulation() {
+            if (!simulationRunning) return;
+
+            simulationRunning = false;
+            clearInterval(simulationInterval);
+            
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+
+            logActivity('⏹ Simulation stopped', 'info');
+        }
+
+        // Initialize everything when page loads
+        window.addEventListener('load', () => {
+            initializeCharts();
+            logActivity('📱 Metrics Hub ready', 'info');
+            logActivity('💡 Tap "Init" then "Start" to begin', 'info');
+            
+            // Add some initial animation
+            setTimeout(() => {
+                document.querySelectorAll('.fade-in').forEach((el, index) => {
+                    el.style.animationDelay = `${index * 0.1}s`;
+                });
+            }, 100);
+        });
+
+        // Add navigation functionality
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', function() {
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                this.classList.add('active');
+            });
+        });
+
+        // Add some visual feedback for button presses
+        document.querySelectorAll('.btn').forEach(btn => {
+            btn.addEventListener('touchstart', function() {
+                this.style.transform = 'scale(0.95)';
+            });
+            btn.addEventListener('touchend', function() {
+                this.style.transform = 'scale(1)';
+            });
+        });
+
+        // Simulate some background activity
+        function simulateBackgroundActivity() {
+            const activities = [
+                '📊 Dashboard refreshed',
+                '🔄 Metrics synced',
+                '📱 Health check passed',
+                '🌐 Connection stable',
+                '⚡ Performance optimized'
+            ];
+            
+            const randomActivity = activities[Math.floor(Math.random() * activities.length)];
+            if (Math.random() < 0.3) {
+                logActivity(randomActivity, 'info');
+            }
+        }
+
+        setInterval(simulateBackgroundActivity, 8000);
+    </script>
+</body>
+</html>
