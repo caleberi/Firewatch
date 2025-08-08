@@ -1,6 +1,6 @@
 services:
   prometheus:
-    image: ${DOCKER_ACCOUNT}/prometheus:${VERSION_TAG:-1.0.0}
+    image: ${DOCKER_ACCOUNT}/prometheus:${VERSION_NUMBER:-1.0.0}
     container_name: prometheus
     ports:
       - "9091:9091"
@@ -21,7 +21,7 @@ services:
       - "--web.enable-lifecycle"
 
   grafana:
-    image: ${DOCKER_ACCOUNT}/grafana:${VERSION_TAG:-1.0.0}
+    image: ${DOCKER_ACCOUNT}/grafana:${VERSION_NUMBER:-1.0.0}
     container_name: grafana
     ports:
       - "3000:3000"
@@ -41,6 +41,7 @@ services:
       - GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS=haohanyang-mongodb-datasource,grafana-image-renderer,grafana-simple-json-datasource,grafana-clock-panel
     depends_on:
       - prometheus
+      - loki
     networks:
       - monitoring
     restart: unless-stopped
@@ -54,6 +55,8 @@ services:
     depends_on:
       - prometheus
       - grafana
+      - loki
+      - promtail
     networks:
       - monitoring
     restart: unless-stopped
@@ -69,6 +72,42 @@ services:
     networks:
       - monitoring
 
+  loki:
+    build:
+      context: ./loki
+    container_name: loki
+    ports:
+      - "3100:3100"
+    expose:
+      - "3100"
+    volumes:
+      - loki_data:/loki
+      - ./loki/loki.yml:/etc/loki/loki.yml
+    networks:
+      - monitoring
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/loki/loki.yml"
+
+  promtail:
+    build:
+      context: ./promtail
+    container_name: promtail
+    ports:
+      - "9080:9080"
+    expose:
+      - "9080"
+    volumes:
+      - promtail_data:/promtail
+      - ./promtail/promtail.yml:/etc/promtail/promtail.yml
+    depends_on:
+      - loki
+    networks:
+      - monitoring
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/promtail/promtail.yml"
+
 networks:
   monitoring:
     driver: bridge
@@ -76,3 +115,5 @@ networks:
 volumes:
   prometheus_data:
   grafana_data:
+  loki_data:
+  promtail_data:
