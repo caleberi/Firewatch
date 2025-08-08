@@ -47,8 +47,7 @@ services:
     restart: unless-stopped
 
   tallyport:
-    build: 
-      context: tallyport
+    image: ${DOCKER_ACCOUNT}/tallyport:${VERSION_NUMBER:-1.0.0}
     container_name: tallyport
     ports:
       - "8080:8080"
@@ -73,8 +72,7 @@ services:
       - monitoring
 
   loki:
-    build:
-      context: ./loki
+    image: ${DOCKER_ACCOUNT}/loki:${VERSION_NUMBER:-1.0.0}
     container_name: loki
     ports:
       - "3100:3100"
@@ -82,16 +80,12 @@ services:
       - "3100"
     volumes:
       - loki_data:/loki
-      - ./loki/loki.yml:/etc/loki/loki.yml
     networks:
       - monitoring
     restart: unless-stopped
-    command:
-      - "--config.file=/etc/loki/loki.yml"
 
   promtail:
-    build:
-      context: ./promtail
+    image: ${DOCKER_ACCOUNT}/promtail:${VERSION_NUMBER:-1.0.0}
     container_name: promtail
     ports:
       - "9080:9080"
@@ -99,14 +93,11 @@ services:
       - "9080"
     volumes:
       - promtail_data:/promtail
-      - ./promtail/promtail.yml:/etc/promtail/promtail.yml
     depends_on:
       - loki
     networks:
       - monitoring
     restart: unless-stopped
-    command:
-      - "--config.file=/etc/promtail/promtail.yml"
 
 networks:
   monitoring:
